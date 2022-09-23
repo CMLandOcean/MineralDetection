@@ -13,6 +13,12 @@ Code for implementing Tetracorder for Carbon Mapper applications
 sh run_tetracorder.sh [output directory] [refl file] [setup dir] [dataset] [scale]
 ```
 
+Example:
+
+```
+sh run_tetracorder.sh /data/gdcsdata/CarbonMapper/Scratch/kellyh/tetout/yose3p2 /data/gdcsdata/CarbonMapper/Scratch/kellyh/cubes/yose3 /data/gdcsdata/CarbonMapper/software/tetracorder-build/tetracorder.cmds/tetracorder5.26e.cmds cao_2015a 0.0001
+```
+
 Inputs are:
 
 * new directory name for tetracorder outputs. cannot exist already
