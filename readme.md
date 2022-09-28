@@ -36,7 +36,7 @@ Pressure and temperature constraints are set to what EMIT uses (-20 to 80 C, 0.5
 # Tetracorder version
 
 * If a new version of tetracorder is compiled, files in `tetracorder.cmds/tetracorder5.27a.cmds/` will need to be updated
-* Replace location of /t1/ (eg. to `/data/gdcsdata/Carbonmapper/software/tetracorder-build-527`) in cmd-setup-tetrun: Line 20: source=/t1/tetracorder.cmds/tetracorder5.27a.cmds
+* Replace location of /t1/ (eg. to `/data/gdcsdata/CarbonMapper/software/tetracorder-build-527`) in cmd-setup-tetrun: Line 20: source=/t1/tetracorder.cmds/tetracorder5.27a.cmds
 * Replace location of 	ptc="/usr/local/bin/tetracorder5.27" in `cmd.runtet`: Line 21 (pts is also probably wrong but that is only for single spectrum). eg for 5.26 it is: 	`ptc="/data/gdcsdata/CarbonMapper/software/tetracorder-build/tetracorder5.26/tetracorder5.26"`
 	ptc="/data/gdcsdata/CarbonMapper/software/tetracorder-build/tetracorder5.27/tetracorder5.27"
 
