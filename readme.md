@@ -7,6 +7,17 @@ Code for implementing Tetracorder for Carbon Mapper applications
 * Make `waves.txt` and `fwhm.txt` files for instrument settings
 * Convolve spectral libraries using `convolve_libraries.sh`.
 
+From `sl1/usgs/library06.conv` folder
+
+```
+sh convolve_libraries.sh [waves.txt] [resol.txt] [n channels] [sensor id] [sensor year] [letter id]
+```
+
+eg.
+```
+sh convolve_libraries.sh waves.txt resol.txt 428 GAO 2022 b
+```
+
 # Run tetracorder
 
 ```
