@@ -1,10 +1,9 @@
-NEW_LIB_NAME=${1}
-WAVES_FILE=${2}
-RESOL_FILE=${3}
-N_CHANS=${4}
-SENSOR_ID=${5}
-SENSOR_YR=${6}
-SENSOR_LET=${7}
+WAVES_FILE=${1}
+RESOL_FILE=${2}
+N_CHANS=${3}
+SENSOR_ID=${4}
+SENSOR_YR=${5}
+SENSOR_LET=${6}
 
 # TODO make sure in LIBRARY06.CONVOL FOLDER 
 # TODO test that waves and resol are both length of nchans!!
