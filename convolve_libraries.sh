@@ -17,7 +17,7 @@ awk '/wavelength =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ */
 # save fwhm from hdr
 awk '/fwhm =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed 's/ /\n/g' | awk '{ print $1/1000 }' > resol.txt
 
-NCHANS=wc -l waves.txt
+NCHANS=`wc -l waves.txt`
 # define 2 letter sensor ID
 SENSOR2=${SENSOR_ID:0:2}
 # define 2 digit year ID as last 2 digits of year
