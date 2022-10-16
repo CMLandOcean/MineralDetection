@@ -1,18 +1,23 @@
-WAVES_FILE=${1}
-RESOL_FILE=${2}
-N_CHANS=${3}
-SENSOR_ID=${4}
-SENSOR_YR=${5}
-SENSOR_LET=${6}
+HDR_FILE=${1}
+SENSOR_ID=${2}
+SENSOR_YR=${3}
+SENSOR_LET=${4}
 
-# TODO make sure in LIBRARY06.CONVOL FOLDER 
+# TODO make sure in LIBRARY06.CONVOL FOLDER or make that an input
 # TODO test that waves and resol are both length of nchans!!
+# assumes inputs are in nm not microns
 
 # define paths
 current_dir=${PWD}
-WAVES_ABS_FILE=`readlink -f ${WAVES_FILE}`
-RESOL_ABS_FILE=`readlink -f ${RESOL_FILE}`
+HDR_ABS_FILE=`readlink -f ${HDR_FILE}`
 
+# save wavelengths from hdr
+awk '/wavelength =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed 's/ /\n/g' | awk '{ print $1/1000 }' > waves.txt
+
+# save fwhm from hdr
+awk '/fwhm =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed 's/ /\n/g' | awk '{ print $1/1000 }' > resol.txt
+
+NCHANS=wc -l waves.txt
 # define 2 letter sensor ID
 SENSOR2=${SENSOR_ID:0:2}
 # define 2 digit year ID as last 2 digits of year
@@ -28,14 +33,6 @@ R_LIBNAME=r06${SENSOR2}${YR2}${LET1}
 # load tetracorder so specpr is available
 export MODULEPATH=/data/gdcsdata/CarbonMapper/software/apps/modules:$MODULEPATH
 module load tetracorder/latest
-
-
-# copy WAVES_FILE to waves.txt
-cp ${WAVES_ABS_FILE} ${current_dir}/waves.txt
-
-# copy RESOL_FILE to resol.txt
-cp ${RESOL_ABS_FILE} ${current_dir}/resol.txt
-
 
 # make start file 
 ./make.new.convol.library.start.file  ${S_LIBNAME}  ${N_CHANS} \
@@ -53,8 +50,7 @@ spsetwave startfiles/${S_LIBNAME}.start   18  6  12  force
 
 # change to research library directory
 
-cd ..
-cd rlib06
+cd ../rlib06
 
 cp ${current_dir}/startfiles/${S_LIBNAME}.start startfiles/${R_LIBNAME}.start
 
@@ -67,6 +63,8 @@ cp ${current_dir}/restartfiles/r.${S_LIBNAME} restartfiles/r.${R_LIBNAME}
 
 # make replacements
 # TODO CHECK THESE ARE CORRECT
+mv restartfiles/r.${R_LIBNAME} restartfiles/r.foo
+
 cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		-e "s/iyfl=splib06b/iyfl=sprlb06b/" \
 		-e "s/isavt=      ${S_LIBNAME}/isavt=      ${R_LIBNAME}  /" \
@@ -78,9 +76,10 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 
 # TODO make restart= r1-${SENSOR2}${YR2}${LET1}
 # saved in t1/tetracorder.cmds/tetracorder5.26e/cmds/DATASETS/${SENSOR_ID}_{SENSOR_YR}{LET1}
+
 # TODO print the name to use for these new convolved libraries... ${SENSOR_ID}_{SENSOR_YR}{LET1}
 
 # TODO ...here? r1- restart file needs correct file paths for convolved libraries
-# and they need to be short enough file paths
-
+# copy libraries to short paths here? 
+# maybe copy to correct place at beginning of run_tetracorder
 
