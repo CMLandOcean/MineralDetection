@@ -3,7 +3,7 @@ REFL_FILE=${2} # reflectance file
 DATASET=${3} # instrument and libraries to use
 TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
 SCALE=${5:-0.0001} # Scale factor of image
-SETUP_DIR=${6-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
+SETUP_DIR=${6:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
 TMP_DIR=${7:-/tmp} # temp directory for copying image 
 
 echo 'starting'
