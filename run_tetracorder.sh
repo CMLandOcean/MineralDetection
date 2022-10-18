@@ -1,5 +1,5 @@
 TET_OUT_DIR=${1} # output directory
-REFL_FILE=${2} # reflecance file
+REFL_FILE=${2} # reflectance file
 DATASET=${3} # instrument and libraries to use
 TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
 SCALE=${5:-0.0001} # Scale factor of image
@@ -295,8 +295,8 @@ echo 'mineral fit outputs done'
 date
 
 cd ${TMP_DIR}
-rm ${REFL_ABS_FILE}
-rm ${REFL_ABS_FILE}.hdr
+rm ${local_refl}
+rm ${local_refl}.hdr
 
 cd ${current_dir}
 
