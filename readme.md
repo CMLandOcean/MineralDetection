@@ -30,6 +30,19 @@ Example:
 sh run_tetracorder.sh /data/gdcsdata/CarbonMapper/Scratch/kellyh/tetout/yose3p2 /data/gdcsdata/CarbonMapper/Scratch/kellyh/cubes/yose3 /data/gdcsdata/CarbonMapper/software/tetracorder-build/tetracorder.cmds/tetracorder5.26e.cmds cao_2015a 0.0001
 ```
 
+```
+sh /data/gdcsdata/CarbonMapper/Scratch/kellyh/run_tetracorder.sh /data/gdcsdata/CarbonMapper/Scratch/kellyh/tetout/cuprite2b /data/gdcsdata/CarbonMapper/AlgDevel/SupplyChain/Minerals/TestData/Cuprite/ang202007
+12t200039/ang20200712t200039rfl.tar/ang20200712t200039_rfl_v2y1/ang20200712t200039_corr_v2y1_img avirisng_2020a /data/gdcsdata/CarbonMapper/software/tetracorder-build-527 1 tetracorder5.27a.cmds
+```
+
+TET_OUT_DIR=${1} # output directory
+REFL_FILE=${2} # reflecance file
+DATASET=${3} # instrument and libraries to use
+TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
+SCALE=${5:-0.0001} # Scale factor of image
+SETUP_DIR=${6-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
+TMP_DIR=${7:-/tmp} # temp directory for copying image 
+
 Inputs are:
 
 * new directory name for tetracorder outputs. cannot exist already

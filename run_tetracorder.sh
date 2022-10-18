@@ -1,33 +1,52 @@
-TETRA_OUT_DIR=${1}
-REFL_FILE=${2}
-TETRACORDER_CMD_BASE=${3}
-DATASET=${4}
-SCALE=${5}
+TET_OUT_DIR=${1} # output directory
+REFL_FILE=${2} # reflecance file
+DATASET=${3} # instrument and libraries to use
+TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
+SCALE=${5:-0.0001} # Scale factor of image
+SETUP_DIR=${6-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
+TMP_DIR=${7:-/tmp} # temp directory for copying image 
 
 echo 'starting'
 date
 
-export MODULEPATH=/data/gdcsdata/CarbonMapper/software/apps/modules:$MODULEPATH
-module load tetracorder/latest
+# assume tetracorder is loaded
+# export MODULEPATH=/data/gdcsdata/CarbonMapper/software/apps/modules:$MODULEPATH
+# module load tetracorder/latest
 
-TETRA_OUT_DIR_ABS=`readlink -f ${TETRA_OUT_DIR}`
-TETRA_SETUP=${TETRACORDER_CMD_BASE}/cmd-setup-tetrun-cm
+# define paths
+TET_OUT_DIR_ABS=`readlink -f ${TET_OUT_DIR}`
+TET_SETUP=${TET_CMD_BASE}/tetracorder.cmds/$SETUP_DIR/cmd-setup-tetrun
 
 REFL_ABS_FILE=`readlink -f ${REFL_FILE}`
-OUTPUT_ABS_DIR=`readlink -f ${TETRA_OUT_DIR}`
+OUTPUT_ABS_DIR=`readlink -f ${TET_OUT_DIR}`
 local_refl=`basename ${REFL_FILE}`
-local_output=`basename ${TETRA_OUT_DIR}`
+local_output=`basename ${TET_OUT_DIR}`
 current_dir=${PWD}
 
+# copy cube and hdr to tmp directory
+cd ${TMP_DIR}
 cp ${REFL_ABS_FILE} .
 cp ${REFL_ABS_FILE}.hdr .
 
 echo 'copied cube and hdr'
 date
-${TETRA_SETUP} ${TETRA_OUT_DIR} ${DATASET} cube ${current_dir}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar
-cd ${TETRA_OUT_DIR}
+
+cd $current_dir
+
+# replace loctaion of t1 in line 20 of cmd-setup-tetrun
+sed -i.bak "20 s,source=/t1,source=$TET_CMD_BASE,g" $TET_SETUP
+
+echo "${TET_SETUP} ${TET_OUT_DIR} ${DATASET} cube ${TMP_DIR}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar"
+
+# run cmd-setup-tetrun
+${TET_SETUP} ${TET_OUT_DIR} ${DATASET} cube ${TMP_DIR}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar
+
+# cd into tet output directory
+cd ${TET_OUT_DIR}
+# save filename of cubepath
 echo ${REFL_ABS_FILE} > cubepath.txt
-time ./cmd.runtet cube ${current_dir}/${local_refl}  >& cmd.runtet.out
+
+time ./cmd.runtet cube ${TMP_DIR}/${local_refl}  >& cmd.runtet.out
 echo 'tetracorder finished'
 date
 
@@ -35,12 +54,12 @@ echo 'starting post tetracorder'
 
 echo 'editing header files'
 
-sed -s -i.bak 's/^  *//' ${TETRA_OUT_DIR}/group.1um/*.hdr
-sed -s -i.bak 's/^  *//' ${TETRA_OUT_DIR}/group.2um/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.1um/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.2um/*.hdr
 
-sed -s -i.bak 's/^  *//' ${TETRA_OUT_DIR}/case.veg.type/*.hdr
-sed -s -i.bak 's/^  *//' ${TETRA_OUT_DIR}/group.1.5um-broad/*.hdr
-sed -s -i.bak 's/^  *//' ${TETRA_OUT_DIR}/group.2um-broad/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/case.veg.type/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.1.5um-broad/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.2um-broad/*.hdr
 
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.1um/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.2um/*.hdr >/dev/null
@@ -51,236 +70,235 @@ grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.2um-broad/*.hdr >/dev/null
 
 echo 'starting endmember aggregations'
 
-mkdir ${TETRA_OUT_DIR}/minerals
+mkdir ${TET_OUT_DIR}/minerals
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/sulfate_kalun150c.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/sulfate_kalun250c.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/sulfate_kalun450c.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/sulfate_naalun150c.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/sulfate_naalun300c.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/sulfate_naalun450c.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/sulfate_na82alun100c.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/sulfate_na63alun300c.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/sulfate_na40alun400c.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/sulfate_alunNa03.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/sulfate_alunNa56450c.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/sulfate_alunNa78.450c.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
--N ${TETRA_OUT_DIR}/group.2um/sulfate_alun35K65Na.low.fit.gz \
--O ${TETRA_OUT_DIR}/group.2um/sulfate_alun73K27Na.low.fit.gz \
--P ${TETRA_OUT_DIR}/group.2um/sulfate_alun66K34Na.low.fit.gz \
--Q ${TETRA_OUT_DIR}/group.2um/alunite+pyrophyl.fit.gz \
--R ${TETRA_OUT_DIR}/group.2um/alunite.5+kaol.5.fit.gz \
--S ${TETRA_OUT_DIR}/group.2um/Kalun+kaol.intmx.fit.gz \
--T ${TETRA_OUT_DIR}/group.2um/Na-alun+kaol.intmx.fit.gz \
--U ${TETRA_OUT_DIR}/group.2um/alunite.5+musc.5.fit.gz \
--V ${TETRA_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
--W ${TETRA_OUT_DIR}/group.2um/sulfate_ammonalunite.fit.gz \
--X ${TETRA_OUT_DIR}/group.2um/kaol.75+alun.25.fit.gz \
--Y ${TETRA_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
--Z ${TETRA_OUT_DIR}/group.2um/pyroph.5+alunit.5.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/alunite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T+U+V+W+X+Y+Z"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/sulfate_kalun150c.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/sulfate_kalun250c.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/sulfate_kalun450c.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/sulfate_naalun150c.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/sulfate_naalun300c.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/sulfate_naalun450c.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/sulfate_na82alun100c.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/sulfate_na63alun300c.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/sulfate_na40alun400c.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/sulfate_alunNa03.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/sulfate_alunNa56450c.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/sulfate_alunNa78.450c.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
+-N ${TET_OUT_DIR}/group.2um/sulfate_alun35K65Na.low.fit.gz \
+-O ${TET_OUT_DIR}/group.2um/sulfate_alun73K27Na.low.fit.gz \
+-P ${TET_OUT_DIR}/group.2um/sulfate_alun66K34Na.low.fit.gz \
+-Q ${TET_OUT_DIR}/group.2um/alunite+pyrophyl.fit.gz \
+-R ${TET_OUT_DIR}/group.2um/alunite.5+kaol.5.fit.gz \
+-S ${TET_OUT_DIR}/group.2um/Kalun+kaol.intmx.fit.gz \
+-T ${TET_OUT_DIR}/group.2um/Na-alun+kaol.intmx.fit.gz \
+-U ${TET_OUT_DIR}/group.2um/alunite.5+musc.5.fit.gz \
+-V ${TET_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
+-W ${TET_OUT_DIR}/group.2um/sulfate_ammonalunite.fit.gz \
+-X ${TET_OUT_DIR}/group.2um/kaol.75+alun.25.fit.gz \
+-Y ${TET_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
+-Z ${TET_OUT_DIR}/group.2um/pyroph.5+alunit.5.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/alunite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T+U+V+W+X+Y+Z"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/feldspar_buddington.namont2.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/feldspar_buddingtonite_ammonium.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/feldspar_buddington.namont.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/buddingtonite.tif --calc="A+B+C"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/feldspar_buddington.namont2.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/feldspar_buddingtonite_ammonium.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/feldspar_buddington.namont.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/buddingtonite.tif --calc="A+B+C"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/carbonate_calcite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/talc+calcite.parkcity.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/talc+carbonate.parkcity.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.2Ca-mont.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+dolomite.5.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/calcite+0.2Na-mont.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/calcite+0.5Ca-mont.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.3muscovite.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.2kaolwxl.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/carbonate_calcite0.7+kaol0.3.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/carbonate_smectite_calcite.33+Ca-mont.67.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/calcite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/carbonate_calcite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/talc+calcite.parkcity.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/talc+carbonate.parkcity.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.2Ca-mont.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/carbonate_calcite+dolomite.5.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/calcite+0.2Na-mont.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/calcite+0.5Ca-mont.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.3muscovite.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.2kaolwxl.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/carbonate_calcite0.7+kaol0.3.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/carbonate_smectite_calcite.33+Ca-mont.67.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/calcite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/chlorite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/chlorite_clinochlore.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/chlorite_clinochlore.nmnh83369.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/chlorite_clinochlore.fe.gds157.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/chlorite_clinochlore.fe.sc-cca-1.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/chlorite_cookeite-car-1.a.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/chlorite_cookeite-car-1.c.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/chlorite_thuringite.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/chlorite-skarn.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/prehnite+.50chlorite.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/prehnite+.67chlorite.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/prehnite+.75chlorite.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/muscovite+chlorite.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/chlorite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/chlorite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/chlorite_clinochlore.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/chlorite_clinochlore.nmnh83369.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/chlorite_clinochlore.fe.gds157.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/chlorite_clinochlore.fe.sc-cca-1.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/chlorite_cookeite-car-1.a.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/chlorite_cookeite-car-1.c.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/chlorite_thuringite.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/chlorite-skarn.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/prehnite+.50chlorite.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/prehnite+.67chlorite.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/prehnite+.75chlorite.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/muscovite+chlorite.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/chlorite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/kaolgrp_dickite.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/dickite.tif --calc="A+B+C+D+E"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/kaolgrp_dickite.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/dickite.tif --calc="A+B+C+D+E"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/talc+carbonate.parkcity.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+dolomite.5.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/carbonate_dolomite.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/carbonate_dolo+.5ca-mont.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/dolomite.tif --calc="A+B+C+D+E+F+G"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/talc+carbonate.parkcity.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/carbonate_calcite+dolomite.5.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/carbonate_dolomite.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/carbonate_dolo+.5ca-mont.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/dolomite.tif --calc="A+B+C+D+E+F+G"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.1um/epidote.fit.gz \
--B ${TETRA_OUT_DIR}/group.1um/fe2+generic_br33a_bioqtzmonz_epidote.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/epidote.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/epidote.tif --calc="A+B+C"
+gdal_calc.py -A ${TET_OUT_DIR}/group.1um/epidote.fit.gz \
+-B ${TET_OUT_DIR}/group.1um/fe2+generic_br33a_bioqtzmonz_epidote.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/epidote.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/epidote.tif --calc="A+B+C"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.medgr.ws222.fit.gz \
--B ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.fingr.fit.gz \
--C ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.medcoarsegr.mpc.trjar.fit.gz \
--D ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.coarsegr.fit.gz \
--E ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.lepidocrosite.fit.gz \
--F ${TETRA_OUT_DIR}/group.1um/fe3+_goethite+qtz.medgr.gds240.fit.gz \
--G ${TETRA_OUT_DIR}/group.1um/fe3+_goethite.thincoat.fit.gz \
--H ${TETRA_OUT_DIR}/group.1um/fe3+_goeth+jarosite.fit.gz \
--I ${TETRA_OUT_DIR}/group.1um/fe2+_goeth+musc.fit.gz \
--J ${TETRA_OUT_DIR}/group.1um/fe2+fe3+_chlor+goeth.propylzone.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/goerthite.tif --calc="A+B+C+D+E+F+G+H+I+J"
+gdal_calc.py -A ${TET_OUT_DIR}/group.1um/fe3+_goethite.medgr.ws222.fit.gz \
+-B ${TET_OUT_DIR}/group.1um/fe3+_goethite.fingr.fit.gz \
+-C ${TET_OUT_DIR}/group.1um/fe3+_goethite.medcoarsegr.mpc.trjar.fit.gz \
+-D ${TET_OUT_DIR}/group.1um/fe3+_goethite.coarsegr.fit.gz \
+-E ${TET_OUT_DIR}/group.1um/fe3+_goethite.lepidocrosite.fit.gz \
+-F ${TET_OUT_DIR}/group.1um/fe3+_goethite+qtz.medgr.gds240.fit.gz \
+-G ${TET_OUT_DIR}/group.1um/fe3+_goethite.thincoat.fit.gz \
+-H ${TET_OUT_DIR}/group.1um/fe3+_goeth+jarosite.fit.gz \
+-I ${TET_OUT_DIR}/group.1um/fe2+_goeth+musc.fit.gz \
+-J ${TET_OUT_DIR}/group.1um/fe2+fe3+_chlor+goeth.propylzone.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/goerthite.tif --calc="A+B+C+D+E+F+G+H+I+J"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/kaolgrp_halloysite.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/halloysite.tif --calc="A"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/kaolgrp_halloysite.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/halloysite.tif --calc="A"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
--B ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.fe2602.fit.gz \
--C ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.ws161.fit.gz \
--D ${TETRA_OUT_DIR}/group.1um/fe3+_maghemite.fit.gz \
--E ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.nano.BR34b2.fit.gz \
--F ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.nano.BR34b2b.fit.gz \
--G ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.gds76.fit.gz \
--H ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.thincoat.fit.gz \
--I ${TETRA_OUT_DIR}/group.1um/fe2+fe3+mix_with_hematite_br5b.fit.gz \
--J ${TETRA_OUT_DIR}/group.1um/fe2+fe3+_hematite_weathering.fit.gz \
--K ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br25a.fit.gz \
--L ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.med.gr.br25b.fit.gz \
--M ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br25c.fit.gz \
--N ${TETRA_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br34c.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/hematite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N"
+gdal_calc.py -A ${TET_OUT_DIR}/group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
+-B ${TET_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.fe2602.fit.gz \
+-C ${TET_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.ws161.fit.gz \
+-D ${TET_OUT_DIR}/group.1um/fe3+_maghemite.fit.gz \
+-E ${TET_OUT_DIR}/group.1um/fe3+_hematite.nano.BR34b2.fit.gz \
+-F ${TET_OUT_DIR}/group.1um/fe3+_hematite.nano.BR34b2b.fit.gz \
+-G ${TET_OUT_DIR}/group.1um/fe3+_hematite.fine.gr.gds76.fit.gz \
+-H ${TET_OUT_DIR}/group.1um/fe3+_hematite.thincoat.fit.gz \
+-I ${TET_OUT_DIR}/group.1um/fe2+fe3+mix_with_hematite_br5b.fit.gz \
+-J ${TET_OUT_DIR}/group.1um/fe2+fe3+_hematite_weathering.fit.gz \
+-K ${TET_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br25a.fit.gz \
+-L ${TET_OUT_DIR}/group.1um/fe3+_hematite.med.gr.br25b.fit.gz \
+-M ${TET_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br25c.fit.gz \
+-N ${TET_OUT_DIR}/group.1um/fe3+_hematite.lg.gr.br34c.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/hematite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/micagrp_illite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/micagrp_illite.gds4.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/smectite_ammonillsmec.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/micagrp_illite.roscoelite.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/illite.tif --calc="A+B+C+D+E"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/micagrp_illite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/micagrp_illite.gds4.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/smectite_ammonillsmec.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/micagrp_illite.roscoelite.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/illite.tif --calc="A+B+C+D+E"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/sulfate_ammonalunite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/sulfate_ammonjarosite.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/sulfate_jarosite-Na.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/sulfate_jarosite-K.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/sulfate_jarosite-lowT.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/musc+jarosite.intimat.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/jarosite.tif --calc="A+B+C+D+E+F+G+H+I+J+K"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/sulfate_ammonalunite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/sulfate_ammonjarosite.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/sulfate_jarosite-Na.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/sulfate_jarosite-K.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/sulfate_jarosite-lowT.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/musc+jarosite.intimat.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/jarosite.tif --calc="A+B+C+D+E+F+G+H+I+J+K"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/alunite.5+kaol.5.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/Kalun+kaol.intmx.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/Na-alun+kaol.intmx.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.2kaolwxl.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/carbonate_calcite0.7+kaol0.3.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/kaolgrp_kaolinite_wxl.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/kaolgrp_kaolinite_pxl.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/kaolin.5+smect.5.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/kaolin.3+smect.7.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/kaol.75+alun.25.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/kaolin.5+muscov.medAl.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/kaolin.5+muscov.medhighAl.fit.gz \
--N ${TETRA_OUT_DIR}/group.2um/kaolin+musc.intimat.fit.gz \
--O ${TETRA_OUT_DIR}/group.2um/kaol.75+pyroph.25.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/kaolinite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/alunite.5+kaol.5.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/Kalun+kaol.intmx.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/Na-alun+kaol.intmx.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.2kaolwxl.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/carbonate_calcite0.7+kaol0.3.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/kaolgrp_kaolinite_wxl.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/kaolgrp_kaolinite_pxl.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/kaolin.5+smect.5.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/kaolin.3+smect.7.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/kaol.75+alun.25.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/kaolin.5+muscov.medAl.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/kaolin.5+muscov.medhighAl.fit.gz \
+-N ${TET_OUT_DIR}/group.2um/kaolin+musc.intimat.fit.gz \
+-O ${TET_OUT_DIR}/group.2um/kaol.75+pyroph.25.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/kaolinite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.2Ca-mont.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/calcite+0.2Na-mont.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/calcite+0.5Ca-mont.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/carbonate_dolo+.5ca-mont.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/smectite_montmorillonite_fe_swelling.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/smectite_montmorillonite_ca_swelling.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/smectite_beidellite_gds123.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/smectite_beidellite_gds124.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/carbonate_smectite_calcite.33+Ca-mont.67.fit.gz \
--N ${TETRA_OUT_DIR}/group.2um/organic_drygrass+.17Na-mont.fit.gz \
--O ${TETRA_OUT_DIR}/group.2um/organic_benzene+montswy.fit.gz \
--P ${TETRA_OUT_DIR}/group.2um/organic_trichlor+montswy.fit.gz \
--Q ${TETRA_OUT_DIR}/group.2um/organic_toluene+montswy.fit.gz \
--R ${TETRA_OUT_DIR}/group.2um/organic_unleaded.gas+montswy.fit.gz \
--S ${TETRA_OUT_DIR}/group.2um/organic_tce+montswy.fit.gz \
--T ${TETRA_OUT_DIR}/group.2um/pyroph.5+mont0.5.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/montmorillonite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.2Ca-mont.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/calcite+0.2Na-mont.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/calcite+0.5Ca-mont.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/carbonate_dolo+.5ca-mont.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/smectite_montmorillonite_fe_swelling.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/smectite_montmorillonite_ca_swelling.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/smectite_beidellite_gds123.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/smectite_beidellite_gds124.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/calcite.25+dolom.25+Na-mont.5.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/carbonate_calcite.25+dolom.25+Ca-mont.5.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/carbonate_smectite_calcite.33+Ca-mont.67.fit.gz \
+-N ${TET_OUT_DIR}/group.2um/organic_drygrass+.17Na-mont.fit.gz \
+-O ${TET_OUT_DIR}/group.2um/organic_benzene+montswy.fit.gz \
+-P ${TET_OUT_DIR}/group.2um/organic_trichlor+montswy.fit.gz \
+-Q ${TET_OUT_DIR}/group.2um/organic_toluene+montswy.fit.gz \
+-R ${TET_OUT_DIR}/group.2um/organic_unleaded.gas+montswy.fit.gz \
+-S ${TET_OUT_DIR}/group.2um/organic_tce+montswy.fit.gz \
+-T ${TET_OUT_DIR}/group.2um/pyroph.5+mont0.5.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/montmorillonite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/alunite.5+musc.5.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/carbonate_calcite+0.3muscovite.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/kaolin.5+muscov.medAl.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/kaolin.5+muscov.medhighAl.fit.gz \
--I ${TETRA_OUT_DIR}/group.2um/kaolin+musc.intimat.fit.gz \
--J ${TETRA_OUT_DIR}/group.2um/micagrp_muscovite-medhigh-Al.fit.gz \
--K ${TETRA_OUT_DIR}/group.2um/micagrp_muscovite-low-Al.fit.gz \
--L ${TETRA_OUT_DIR}/group.2um/micagrp_muscoviteFerich.fit.gz \
--M ${TETRA_OUT_DIR}/group.2um/prehnite+muscovite.fit.gz \
--N ${TETRA_OUT_DIR}/group.2um/micagrp_muscovite-med-Al.fit.gz \
--O ${TETRA_OUT_DIR}/group.2um/musc+pyroph.fit.gz \
--P ${TETRA_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
--Q ${TETRA_OUT_DIR}/group.2um/musc+jarosite.intimat.fit.gz \
--R ${TETRA_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
--S ${TETRA_OUT_DIR}/group.2um/muscovite+chlorite.fit.gz \
--T ${TETRA_OUT_DIR}/group.2um/pyroph+tr.musc.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/muscovite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/alunite.5+musc.5.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/alunite.33+kaol.33+musc.33.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/carbonate_calcite+0.3muscovite.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/dick+musc+gyp+jar.amix.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/kaolin.5+muscov.medAl.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/kaolin.5+muscov.medhighAl.fit.gz \
+-I ${TET_OUT_DIR}/group.2um/kaolin+musc.intimat.fit.gz \
+-J ${TET_OUT_DIR}/group.2um/micagrp_muscovite-medhigh-Al.fit.gz \
+-K ${TET_OUT_DIR}/group.2um/micagrp_muscovite-low-Al.fit.gz \
+-L ${TET_OUT_DIR}/group.2um/micagrp_muscoviteFerich.fit.gz \
+-M ${TET_OUT_DIR}/group.2um/prehnite+muscovite.fit.gz \
+-N ${TET_OUT_DIR}/group.2um/micagrp_muscovite-med-Al.fit.gz \
+-O ${TET_OUT_DIR}/group.2um/musc+pyroph.fit.gz \
+-P ${TET_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
+-Q ${TET_OUT_DIR}/group.2um/musc+jarosite.intimat.fit.gz \
+-R ${TET_OUT_DIR}/group.2um/musc+gyp+jar+dick.amix.fit.gz \
+-S ${TET_OUT_DIR}/group.2um/muscovite+chlorite.fit.gz \
+-T ${TET_OUT_DIR}/group.2um/pyroph+tr.musc.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/muscovite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R+S+T"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.1um/fe3+_smectite_nontronite.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/smectite_nontronite_swelling.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/nontronite.tif --calc="A+B"
+gdal_calc.py -A ${TET_OUT_DIR}/group.1um/fe3+_smectite_nontronite.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/smectite_nontronite_swelling.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/nontronite.tif --calc="A+B"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.1um/sulfide_copper_chalcopyrite.fit.gz \
--B ${TETRA_OUT_DIR}/group.1um/sulfide_pyrite.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/pyrite.tif --calc="A+B"
+gdal_calc.py -A ${TET_OUT_DIR}/group.1um/sulfide_copper_chalcopyrite.fit.gz \
+-B ${TET_OUT_DIR}/group.1um/sulfide_pyrite.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/pyrite.tif --calc="A+B"
 
-gdal_calc.py -A ${TETRA_OUT_DIR}/group.2um/alunite+pyrophyl.fit.gz \
--B ${TETRA_OUT_DIR}/group.2um/kaol.75+pyroph.25.fit.gz \
--C ${TETRA_OUT_DIR}/group.2um/musc+pyroph.fit.gz \
--D ${TETRA_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
--E ${TETRA_OUT_DIR}/group.2um/pyrophyllite.fit.gz \
--F ${TETRA_OUT_DIR}/group.2um/pyroph.5+mont0.5.fit.gz \
--G ${TETRA_OUT_DIR}/group.2um/pyroph.5+alunit.5.fit.gz \
--H ${TETRA_OUT_DIR}/group.2um/pyroph+tr.musc.fit.gz \
---outfile=${TETRA_OUT_DIR}/minerals/pyrophyllite.tif --calc="A+B+C+D+E+F+G+H"
+gdal_calc.py -A ${TET_OUT_DIR}/group.2um/alunite+pyrophyl.fit.gz \
+-B ${TET_OUT_DIR}/group.2um/kaol.75+pyroph.25.fit.gz \
+-C ${TET_OUT_DIR}/group.2um/musc+pyroph.fit.gz \
+-D ${TET_OUT_DIR}/group.2um/alunite+musc+pyroph.fit.gz \
+-E ${TET_OUT_DIR}/group.2um/pyrophyllite.fit.gz \
+-F ${TET_OUT_DIR}/group.2um/pyroph.5+mont0.5.fit.gz \
+-G ${TET_OUT_DIR}/group.2um/pyroph.5+alunit.5.fit.gz \
+-H ${TET_OUT_DIR}/group.2um/pyroph+tr.musc.fit.gz \
+--outfile=${TET_OUT_DIR}/minerals/pyrophyllite.tif --calc="A+B+C+D+E+F+G+H"
 
-gdalbuildvrt -separate mineralfits.vrt ${TETRA_OUT_DIR}/minerals/*.tif
-gdal_translate -of GTiff mineralfits.vrt ${TETRA_OUT_DIR}/mineralfits.tif
+gdalbuildvrt -separate mineralfits.vrt ${TET_OUT_DIR}/minerals/*.tif
+gdal_translate -of GTiff mineralfits.vrt ${TET_OUT_DIR}/mineralfits.tif
 
 cd ${current_dir}
 echo 'mineral fit outputs done'
 
 date
-cd ${current_dir}
 
-rm -f ${local_refl}
-rm -f ${local_refl}.hdr
+cd ${TMP_DIR}
+rm ${REFL_ABS_FILE}
+rm ${REFL_ABS_FILE}.hdr
+
+cd ${current_dir}
 
 echo 'cleanup finished'
-date
-
-cd ${current_dir}
 date
