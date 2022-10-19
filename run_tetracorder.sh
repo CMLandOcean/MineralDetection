@@ -6,6 +6,7 @@ SCALE=${5:-0.0001} # Scale factor of image
 SETUP_DIR=${6:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
 TMP_DIR=${7:-/tmp} # temp directory for copying image 
 
+# assumes that sl1 is in TET_CMD_BASE/sl1
 #### PREPARE FOR TETRACORDER ####
 
 # define paths
