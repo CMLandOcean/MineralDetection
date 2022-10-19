@@ -1,23 +1,40 @@
 HDR_FILE=${1}
-SENSOR_ID=${2}
-SENSOR_YR=${3}
-SENSOR_LET=${4}
+SL1_DIR=${2} # path to sl1
+TET_CMD_BASE=${3} # path to t1
+SENSOR_ID=${4} # sensor ID name eg GAO. first two letters used for ID
+SENSOR_YR=${5}
+SENSOR_LET=${6}
+SETUP_DIR=${7:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
 
-# TODO make sure in LIBRARY06.CONVOL FOLDER or make that an input
 # TODO test that waves and resol are both length of nchans!!
 # assumes inputs are in nm not microns
 
 # define paths
 current_dir=${PWD}
 HDR_ABS_FILE=`readlink -f ${HDR_FILE}`
+SL1_ABS_DIR=`readlink -f ${SL1_DIR}`
 
-# save wavelengths from hdr
-awk '/wavelength =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed 's/ /\n/g' | awk '{ print $1/1000 }' > waves.txt
+# cd into library06.conv dir
+cd $SL1_ABS_DIR/usgs/library06.conv
 
-# save fwhm from hdr
-awk '/fwhm =/ {print}' ${HDR_ABS_FILE} | sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed 's/ /\n/g' | awk '{ print $1/1000 }' > resol.txt
+# save waves.txt from hdr
+awk '/wavelength =/ {print}' ${HDR_ABS_FILE} | \
+sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
+tr -s ' ' | sed 's/ /\n/g' | \
+awk '{ print $1/1000 }' 
+> waves.txt
 
+# save resol.txt from hdr
+awk '/fwhm =/ {print}' ${HDR_ABS_FILE} | \
+sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
+tr -s ' ' | sed 's/ /\n/g' | \
+awk '{ print $1/1000 }' \
+> resol.txt
+
+# define number of channels
+# TODO check that waves and resol are same length
 NCHANS=`wc -l waves.txt`
+
 # define 2 letter sensor ID
 SENSOR2=${SENSOR_ID:0:2}
 # define 2 digit year ID as last 2 digits of year
@@ -29,10 +46,6 @@ LET1=${SENSOR_LET:0:1}
 S_LIBNAME=s06${SENSOR2}${YR2}${LET1}
 # define research library name
 R_LIBNAME=r06${SENSOR2}${YR2}${LET1}
-
-# load tetracorder so specpr is available
-export MODULEPATH=/data/gdcsdata/CarbonMapper/software/apps/modules:$MODULEPATH
-module load tetracorder/latest
 
 # make start file 
 ./make.new.convol.library.start.file  ${S_LIBNAME}  ${N_CHANS} \
@@ -50,21 +63,19 @@ spsetwave startfiles/${S_LIBNAME}.start   18  6  12  force
 
 # change to research library directory
 
-cd ../rlib06
+cd $SL1_ABS_DIR/usgs/rlib06
 
-cp ${current_dir}/startfiles/${S_LIBNAME}.start startfiles/${R_LIBNAME}.start
+cp $SL1_ABS_DIR/usgs/library06.conv/startfiles/${S_LIBNAME}.start startfiles/${R_LIBNAME}.start
 
 spsettitle startfiles/${R_LIBNAME}.start   1 "Digital Spectral Library: ${R_LIBNAME} " force
 spsetwave startfiles/${R_LIBNAME}.start   6  6  12  force
 spsetwave startfiles/${R_LIBNAME}.start   12  6  12  force
 
 # copy restart file
-cp ${current_dir}/restartfiles/r.${S_LIBNAME} restartfiles/r.${R_LIBNAME}
+cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.${S_LIBNAME} restartfiles/r.${R_LIBNAME}
 
 # make replacements
-# TODO CHECK THESE ARE CORRECT
 mv restartfiles/r.${R_LIBNAME} restartfiles/r.foo
-
 cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		-e "s/iyfl=splib06b/iyfl=sprlb06b/" \
 		-e "s/isavt=      ${S_LIBNAME}/isavt=      ${R_LIBNAME}  /" \
@@ -74,12 +85,19 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		
 ./mak.convol.library ${R_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR2}${YR2}${LET1} 12 noX
 
-# TODO make restart= r1-${SENSOR2}${YR2}${LET1}
-# saved in t1/tetracorder.cmds/tetracorder5.26e/cmds/DATASETS/${SENSOR_ID}_{SENSOR_YR}{LET1}
+echo "Libary convolutions complete for ${S_LIBNAME} and ${R_LIBNAME}. Use as  ${SENSOR_ID}_{SENSOR_YR}{LET1}"
 
-# TODO print the name to use for these new convolved libraries... ${SENSOR_ID}_{SENSOR_YR}{LET1}
+# Make DATASETS file
+cat restart= r1-${SENSOR2}${YR2}${LET1} > $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/$SENSOR_ID_$SENSOR_YR$LET1
 
-# TODO ...here? r1- restart file needs correct file paths for convolved libraries
-# copy libraries to short paths here? 
-# maybe copy to correct place at beginning of run_tetracorder
+# Copy restart file from 06.conv to t1 directory
+cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
+
+# edit restart file
+# irfl change r. to r1-
+# iwdgt r06 convolved name $R_LIBNAME
+# inmy convolved s06 name $S_LIBNAME
+# TODO check NCHANS is correct
+
+
 

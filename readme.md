@@ -4,7 +4,8 @@ Code for implementing Tetracorder for Carbon Mapper applications
 
 # Pre tetracorder
 
-* Make `waves.txt` and `fwhm.txt` files for instrument settings
+* Starting from a hdr file with wavelengths and fwhm in nm
+* (or TODO: option to start from `waves.txt` and `fwhm.txt` files)
 * Convolve spectral libraries using `convolve_libraries.sh`.
 
 From `sl1/usgs/library06.conv` folder
@@ -35,34 +36,23 @@ sh /data/gdcsdata/CarbonMapper/Scratch/kellyh/run_tetracorder.sh /data/gdcsdata/
 12t200039/ang20200712t200039rfl.tar/ang20200712t200039_rfl_v2y1/ang20200712t200039_corr_v2y1_img avirisng_2020a /data/gdcsdata/CarbonMapper/software/tetracorder-build-527 1 tetracorder5.27a.cmds
 ```
 
-TET_OUT_DIR=${1} # output directory
-REFL_FILE=${2} # reflecance file
-DATASET=${3} # instrument and libraries to use
-TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
-SCALE=${5:-0.0001} # Scale factor of image
-SETUP_DIR=${6-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
-TMP_DIR=${7:-/tmp} # temp directory for copying image 
-
 Inputs are:
 
-* new directory name for tetracorder outputs. cannot exist already
+* TET_OUT_DIR: new directory name for tetracorder output. Cannot exist already
+* REFL_FILE: path to BIL reflectance image
+* DATASET: name associated with convolved libraries to use=
+* TET_CMD_BASE: location of top level (t1) directory
+* SCALE: scale factor for reflectance data, must be between 0.000001 and 100000000.0. default 0.0001
+* SETUP_DIR: which version of tetracorder cmds to use. default tetracorder5.27a.cmds
+* TMP_DIR: tmp directory to use for copying images to deal with character length restrictions
 
-* reflectance file path. File must be BIL
+Note: Pressure and temperature constraints are set to what EMIT uses (-20 to 80 C, 0.5 to 1.5 bar) but these could be variables as well. Making a narrower range would only disable materials that are not possible to exist in those conditions. 
 
-* directory where cmd-setup-tetrun file is (actually using cmd-setup-tetrun-cm) . This file has pointer to source where compiled tetracorder is (Line 20). 
-
-* dataset: name associated with convolved libraries to use (specific for each wavelength/resolution configuration). New configurations require running convolve_libraries.sh. Options are gao_2022b (phoenix) or cao_2015a (yosemite)
-
-* scale factor for reflectance data (must be between 0.000001 and 100000000.0)
-
-Pressure and temperature constraints are set to what EMIT uses (-20 to 80 C, 0.5 to 1.5 bar) but these could be variables as well. Making a narrower range would only disable materials that are not possible to exist in those conditions. 
-
-## two step run
+Line 
 
 ```
-Usage: cmd-setup-tetrun   sub_directory   data_set  cube image_cube sscalefactor [-t|-T|t|T mintemperature maxtemperature tempuniT] [-p|-P|p|P minpressure maxpressure pressure-unit]  [image gif|png|none] [shortcubeid idtext]
+cmd-setup-tetrun   sub_directory   data_set  cube image_cube sscalefactor [-t|-T|t|T mintemperature maxtemperature tempuniT] [-p|-P|p|P minpressure maxpressure pressure-unit]  [image gif|png|none] [shortcubeid idtext]
 ```
-then cd into 
 
 # Tetracorder version
 
