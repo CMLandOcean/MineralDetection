@@ -90,16 +90,23 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 echo "Libary convolutions complete for ${S_LIBNAME} and ${R_LIBNAME}. Use as  ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 # Make DATASETS file
-cat restart= r1-${SENSOR2}${YR2}${LET1} > $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/$SENSOR_ID_$SENSOR_YR$LET1
+echo "restart= r1-${SENSOR2}${YR2}${LET1}" > $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
+
+# path to restart file in t1 directory
+RESTART_PATH=$TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
 
 # Copy restart file from 06.conv to t1 directory
-cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
+cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $RESTART_PATH
 
-# edit restart file
-# irfl change r. to r1-
-# iwdgt r06 convolved name $R_LIBNAME
-# inmy convolved s06 name $S_LIBNAME
-# TODO check NCHANS is correct
+# correct restart file name
+sed -i.bak "12 s/irfl=r.s06/irfl=r1/g" $RESTART_PATH
+# correct rlib name
+sed -i.bak "26 s/*unasnd*/$R_LIBNAME/g" $RESTART_PATH
+# correct slib name
+sed -i.bak "29 s/splib06b/$S_LIBNAME/g" $RESTART_PATH
+
+# Create deleted channels file
+
 
 
 

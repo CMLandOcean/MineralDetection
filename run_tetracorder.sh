@@ -1,5 +1,5 @@
 TET_OUT_DIR=${1} # output directory
-REFL_FILE=${2} # reflecance file
+REFL_FILE=${2} # reflectance file
 DATASET=${3} # instrument and libraries to use
 TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
 SCALE=${5:-0.0001} # Scale factor of image
@@ -17,12 +17,6 @@ local_refl=`basename ${REFL_FILE}`
 local_output=`basename ${TET_OUT_DIR}`
 current_dir=${PWD}
 
-# copy convolved libraries to tmp
-# edit paths in r1- restart file
-# iwfl = path to research library
-# iyfl = path to s06 library
-# $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
-
 # copy cube and hdr to tmp directory
 cd ${TMP_DIR}
 cp ${REFL_ABS_FILE} .
@@ -34,6 +28,18 @@ date
 
 # replace loctaion of t1 in line 20 of cmd-setup-tetrun
 sed -i.bak "20 s,source=/t1,source=$TET_CMD_BASE,g" $TET_SETUP
+
+LIB_CODE=`cat ${TET_CMD_BASE}/tetracorder.cmds/${SETUP_DIR}/DATASETS/${DATASET} | sed 's/restart= r1-//g'`
+# copy convolved rlib library to tmp directory
+RLIB_PATH=${TMP_DIR}/r06${LIB_CODE}
+cp ${TET_CMD_BASE}/sl1/usgs/rlib06/r06${LIB_CODE} $RLIB_PATH
+# replace location of convolved rlib in restart file
+sed -i.bak "6 s,iwfl=/dev/null,iwfl=${RLIB_PATH},g" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
+# copy convolved s06 library to tmp directory
+SLIB_PATH=${TMP_DIR}/s06${LIB_CODE}
+cp ${TET_CMD_BASE}/sl1/usgs/library06.conv/s06${LIB_CODE} $SLIB_PATH
+# replace location of convolved splib06 in restart file
+sed -i.bak "9 s,iyfl=splib06b,iyfl=${SLIB_PATH},g" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
 
 #### SETUP AND RUN TETRACORDER ####
 
@@ -318,6 +324,8 @@ date
 cd ${TMP_DIR}
 rm ${local_refl}
 rm ${local_refl}.hdr
+rm ${SLIB_PATH}
+rm ${RLIB_PATH}
 
 cd ${current_dir}
 
