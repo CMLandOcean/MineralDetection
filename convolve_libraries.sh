@@ -18,22 +18,24 @@ SL1_ABS_DIR=`readlink -f ${SL1_DIR}`
 cd $SL1_ABS_DIR/usgs/library06.conv
 
 # save waves.txt from hdr
-awk '/wavelength =/ {print}' ${HDR_ABS_FILE} | \
+awk '/wavelength =/, /}/ {print}' ${HDR_ABS_FILE} | \
 sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
 tr -s ' ' | sed 's/ /\n/g' | \
-awk '{ print $1/1000 }' 
+sed '/^$/d' | \
+awk '{ print $1/1000 }' \
 > waves.txt
 
 # save resol.txt from hdr
-awk '/fwhm =/ {print}' ${HDR_ABS_FILE} | \
+awk '/fwhm =/, /}/ {print}' ${HDR_ABS_FILE} | \
 sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
 tr -s ' ' | sed 's/ /\n/g' | \
+sed '/^$/d' | \
 awk '{ print $1/1000 }' \
 > resol.txt
 
 # define number of channels
 # TODO check that waves and resol are same length
-NCHANS=`wc -l waves.txt`
+N_CHANS=`wc -l waves.txt | sed 's/[^0-9]/ /g'`
 
 # define 2 letter sensor ID
 SENSOR2=${SENSOR_ID:0:2}
@@ -85,7 +87,7 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		
 ./mak.convol.library ${R_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR2}${YR2}${LET1} 12 noX
 
-echo "Libary convolutions complete for ${S_LIBNAME} and ${R_LIBNAME}. Use as  ${SENSOR_ID}_{SENSOR_YR}{LET1}"
+echo "Libary convolutions complete for ${S_LIBNAME} and ${R_LIBNAME}. Use as  ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 # Make DATASETS file
 cat restart= r1-${SENSOR2}${YR2}${LET1} > $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/$SENSOR_ID_$SENSOR_YR$LET1
