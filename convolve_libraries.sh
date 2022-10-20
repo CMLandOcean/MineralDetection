@@ -106,7 +106,19 @@ sed -i.bak "26 s/*unasnd*/$R_LIBNAME/g" $RESTART_PATH
 sed -i.bak "29 s/splib06b/$S_LIBNAME/g" $RESTART_PATH
 
 # Create deleted channels file
+# in progress... 
+# del_ranges = 0-400, 1300-1500, 1800-2000
+# 
+# echo $del_ranges | sed 's/,/\n/g' | sed 's/[^0-9]/ /g' | awk '{print $1, $2}'
+# 
+# 
+# # For each row of del_ranges, with del1 and del2
+# 
+# DEL1ID=`awk ' {print $1*1000}' waves.txt | awk -v del1="$del1" -v del2="$del2" '$1 > del1 && $1 < del2 { print NR, $1}' | sort -n | head -1`
+# DEL2ID=`awk ' {print $1*1000}' waves.txt | awk -v del1="$del1" -v del2="$del2" '$1 > del1 && $1 < del2 { print NR, $1}' | sort -n | tail -1`
+# 
+# echo ${DEL1ID}t${DEL2ID}
 
 
-
+echo "# gao_2022p"
 
