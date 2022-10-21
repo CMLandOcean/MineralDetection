@@ -1,13 +1,17 @@
-HDR_FILE=${1}
+HDR_FILE=${1} # ENVI hdr file with wavelengths and resol defined
 SL1_DIR=${2} # path to sl1
 TET_CMD_BASE=${3} # path to t1
 SENSOR_ID=${4} # sensor ID name eg GAO. first two letters used for ID
-SENSOR_YR=${5}
-SENSOR_LET=${6}
+SENSOR_YR=${5} # year for sensor configuration. last two letters used for ID
+SENSOR_LET=${6} # one letter ID for sensor configuration
 SETUP_DIR=${7:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
+DEL_RANGES=${8:-0-400,1300-1500,1800-2000}
 
-# TODO test that waves and resol are both length of nchans!!
 # assumes inputs are in nm not microns
+
+####################################
+# SETUP THINGS                     #
+####################################
 
 # define paths
 current_dir=${PWD}
@@ -19,22 +23,21 @@ cd $SL1_ABS_DIR/usgs/library06.conv
 
 # save waves.txt from hdr
 awk '/wavelength =/, /}/ {print}' ${HDR_ABS_FILE} | \
-sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
-tr -s ' ' | sed 's/ /\n/g' | \
-sed '/^$/d' | \
-awk '{ print $1/1000 }' \
-> waves.txt
+	sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
+	tr -s ' ' | sed 's/ /\n/g' | \
+	sed '/^$/d' | \
+	awk '{ print $1/1000 }' \
+	> waves.txt
 
 # save resol.txt from hdr
 awk '/fwhm =/, /}/ {print}' ${HDR_ABS_FILE} | \
-sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
-tr -s ' ' | sed 's/ /\n/g' | \
-sed '/^$/d' | \
-awk '{ print $1/1000 }' \
-> resol.txt
+	sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
+	tr -s ' ' | sed 's/ /\n/g' | \
+	sed '/^$/d' | \
+	awk '{ print $1/1000 }' \
+	> resol.txt
 
 # define number of channels
-# TODO check that waves and resol are same length
 N_CHANS=`wc -l waves.txt | sed 's/[^0-9]/ /g'`
 
 # define 2 letter sensor ID
@@ -49,34 +52,44 @@ S_LIBNAME=s06${SENSOR2}${YR2}${LET1}
 # define research library name
 R_LIBNAME=r06${SENSOR2}${YR2}${LET1}
 
+####################################
+# SPECTRAL LIBRARY 06 CONVOLUTIONS #
+####################################
+
 # make start file 
-./make.new.convol.library.start.file  ${S_LIBNAME}  ${N_CHANS} \
-"Convolved ${SENSOR_ID} ${SENSOR_YR} ${N_CHANS} ch library" \
-"Wavelengths in microns ${N_CHANS} ch ${SENSOR_ID}${YR2}${LET1}" \
-"Resolution in microns ${N_CHANS} ch ${SENSOR_ID}${YR2}${LET1}" force
+./make.new.convol.library.start.file  ${S_LIBNAME} ${N_CHANS} \
+	"Convolved ${SENSOR_ID} ${SENSOR_YR} ${N_CHANS} ch library" \
+	"Wavelengths in microns ${N_CHANS} ch ${SENSOR_ID}${YR2}${LET1}" \
+	"Resolution in microns ${N_CHANS} ch ${SENSOR_ID}${YR2}${LET1}" force
 
 # set pointers for wavelength and resolution
 spsetwave startfiles/${S_LIBNAME}.start   6  6  12  force
 spsetwave startfiles/${S_LIBNAME}.start   12  6  12  force
 spsetwave startfiles/${S_LIBNAME}.start   18  6  12  force
 
-# make library 06
+# make convolved library 06
 ./mak.convol.library ${S_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR_ID}${YR2} 12 noX
 
-# change to research library directory
+####################################
+# RESERACH LIBRARY 06 CONVOLUTIONS #
+####################################
 
+# change to research library directory
 cd $SL1_ABS_DIR/usgs/rlib06
 
+# copy startfile 
 cp $SL1_ABS_DIR/usgs/library06.conv/startfiles/${S_LIBNAME}.start startfiles/${R_LIBNAME}.start
 
-spsettitle startfiles/${R_LIBNAME}.start   1 "Digital Spectral Library: ${R_LIBNAME} " force
+# set title 
+spsettitle startfiles/${R_LIBNAME}.start 1 "Digital Spectral Library: ${R_LIBNAME} " force
+# set pointers for wavelength and resolution
 spsetwave startfiles/${R_LIBNAME}.start   6  6  12  force
 spsetwave startfiles/${R_LIBNAME}.start   12  6  12  force
 
 # copy restart file
 cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.${S_LIBNAME} restartfiles/r.${R_LIBNAME}
 
-# make replacements
+# make replacements in restart file
 mv restartfiles/r.${R_LIBNAME} restartfiles/r.foo
 cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		-e "s/iyfl=splib06b/iyfl=sprlb06b/" \
@@ -84,13 +97,21 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 		-e "s/irfl=r.${S_LIBNAME}/irfl=r.${R_LIBNAME} /"           \
 		-e "s/inmy=       splib06b/inmy=       sprlb06b /" \
 		> restartfiles/r.${R_LIBNAME}
-		
+
+# make convolved research library	
 ./mak.convol.library ${R_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR2}${YR2}${LET1} 12 noX
 
-echo "Libary convolutions complete for ${S_LIBNAME} and ${R_LIBNAME}. Use as  ${SENSOR_ID}_${SENSOR_YR}${LET1}"
+echo "Libary convolutions complete for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
+
+####################################
+# OTHER NECESSARY FILES            #
+####################################
 
 # Make DATASETS file
-echo "restart= r1-${SENSOR2}${YR2}${LET1}" > $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
+echo "restart= r1-${SENSOR2}${YR2}${LET1}" \
+	> $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
+
+echo "DATASETS file made to use ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 # path to restart file in t1 directory
 RESTART_PATH=$TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
@@ -98,27 +119,52 @@ RESTART_PATH=$TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR
 # Copy restart file from 06.conv to t1 directory
 cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $RESTART_PATH
 
-# correct restart file name
+# correct restart file name in restart file
 sed -i.bak "12 s/irfl=r.s06/irfl=r1/g" $RESTART_PATH
-# correct rlib name
+# correct rlib name in restart file
 sed -i.bak "26 s/*unasnd*/$R_LIBNAME/g" $RESTART_PATH
-# correct slib name
+# correct slib name in restart file
 sed -i.bak "29 s/splib06b/$S_LIBNAME/g" $RESTART_PATH
 
-# Create deleted channels file
-# in progress... 
-# del_ranges = 0-400, 1300-1500, 1800-2000
-# 
-# echo $del_ranges | sed 's/,/\n/g' | sed 's/[^0-9]/ /g' | awk '{print $1, $2}'
-# 
-# 
-# # For each row of del_ranges, with del1 and del2
-# 
-# DEL1ID=`awk ' {print $1*1000}' waves.txt | awk -v del1="$del1" -v del2="$del2" '$1 > del1 && $1 < del2 { print NR, $1}' | sort -n | head -1`
-# DEL2ID=`awk ' {print $1*1000}' waves.txt | awk -v del1="$del1" -v del2="$del2" '$1 > del1 && $1 < del2 { print NR, $1}' | sort -n | tail -1`
-# 
-# echo ${DEL1ID}t${DEL2ID}
+##############################################
+# Make DELETED.CHANNELS file using waves.txt #
+##############################################
+cd $SL1_ABS_DIR/usgs/library06.conv
 
+make_del_range () {
+    # Get band numbers from a wave definition file (arg 1) for start / end pair of wavelengths (args 2-3)
+    # example usage:
+    # make_del_range waves.txt 0 400
+    DEL1ID=$(awk ' {print $1*1000}' "$1" | awk -v del1="$2" -v del2="$3" '$1 > del1 && $1 < del2 { print NR}' | sort -n | head -1)
+    DEL2ID=$(awk ' {print $1*1000}' "$1" | awk -v del1="$2" -v del2="$3" '$1 > del1 && $1 < del2 { print NR}' | sort -n | tail -1)
+    if [ "$2" == "" ]; then
+        echo "ERROR: No band found for starting wavelength $2" >&2
+        exit 1
+    elif [ "$3" == "" ]; then
+        echo "ERROR: No band found for ending wavelength $3" >&2
+        exit 2
+    fi
+    echo ${DEL1ID}t${DEL2ID}
+}
 
-echo "# gao_2022p"
+make_del_channels () {
+    # Create deleted channels file (arg 1) from wavelen def file (arg 2) and ranges specified with a comma-delimited list (arg 3)
+    # example usage:
+    # make_del_channels output.txt waves.txt "0-400, 1300-1500, 1800-2000"
+    # DEL_RANGES=${8}
 
+    # For each row of del_ranges, with del1 and del2
+    rm -f $1
+    echo ${DEL_RANGES} | sed 's/,/\n/g' | sed 's/[^0-9]/ /g' | awk '{print $1, $2}' | \
+    while read range; do
+        res=$(make_del_range waves.txt ${range})
+        echo -n $res" " >> $1
+    done
+    echo  "# ${SENSOR_ID}_${SENSOR_YR}${LET1}" >> $1
+}
+## Overall call:
+make_del_channels $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DELETED.channels/delete_${SENSOR_ID}_${SENSOR_YR}${LET1} waves.txt ${DEL_RANGES}
+
+echo "DELETED.channels file made for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
+
+cd $current_dir
