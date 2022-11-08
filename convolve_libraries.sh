@@ -120,7 +120,7 @@ RESTART_PATH=$TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR
 cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $RESTART_PATH
 
 # correct restart file name in restart file
-sed -i.bak "12 s/irfl=r.s06/irfl=r1/g" $RESTART_PATH
+sed -i.bak "12 s/irfl=r.s06/irfl=r1-/g" $RESTART_PATH
 # correct rlib name in restart file
 sed -i.bak "26 s/*unasnd*/$R_LIBNAME/g" $RESTART_PATH
 # correct slib name in restart file
