@@ -35,12 +35,12 @@ LIB_CODE=`cat ${TET_CMD_BASE}/tetracorder.cmds/${SETUP_DIR}/DATASETS/${DATASET} 
 RLIB_PATH=${TMP_DIR}/r06${LIB_CODE}
 cp ${TET_CMD_BASE}/sl1/usgs/rlib06/r06${LIB_CODE} $RLIB_PATH
 # replace location of convolved rlib in restart file
-sed -i.bak "6 s,iwfl=/dev/null,iwfl=${RLIB_PATH},g" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
+sed -i.bak " /^iwfl=/c \iwfl=${RLIB_PATH}" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
 # copy convolved s06 library to tmp directory
 SLIB_PATH=${TMP_DIR}/s06${LIB_CODE}
 cp ${TET_CMD_BASE}/sl1/usgs/library06.conv/s06${LIB_CODE} $SLIB_PATH
 # replace location of convolved splib06 in restart file
-sed -i.bak "9 s,iyfl=splib06b,iyfl=${SLIB_PATH},g" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
+sed -i.bak "/^iyfl=/c \iyfl=${SLIB_PATH}" $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
 
 #### SETUP AND RUN TETRACORDER ####
 
@@ -69,6 +69,7 @@ sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.2um/*.hdr
 sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/case.veg.type/*.hdr
 sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.1.5um-broad/*.hdr
 sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.2um-broad/*.hdr
+sed -s -i.bak 's/^  *//' ${TET_OUT_DIR}/group.veg/*.hdr
 
 # add map info from original image
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.1um/*.hdr >/dev/null
@@ -76,6 +77,7 @@ grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.2um/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a case.veg.type/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.1.5um-broad/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.2um-broad/*.hdr >/dev/null
+grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.veg/*.hdr >/dev/null
 
 echo 'starting endmember aggregations'
 mkdir ${TET_OUT_DIR}/minerals
