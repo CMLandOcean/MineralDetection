@@ -160,7 +160,7 @@ make_del_channels () {
         res=$(make_del_range waves.txt ${range})
         echo -n $res" " >> $1
     done
-    echo  "# ${SENSOR_ID}_${SENSOR_YR}${LET1}" >> $1
+    echo  " c # ${SENSOR_ID}_${SENSOR_YR}${LET1}" >> $1
 }
 ## Overall call:
 make_del_channels $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DELETED.channels/delete_${SENSOR_ID}_${SENSOR_YR}${LET1} waves.txt ${DEL_RANGES}
