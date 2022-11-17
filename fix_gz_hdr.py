@@ -62,7 +62,8 @@ def main():
         raise RuntimeError(f"Could not find vicar LABSIZE marker in {args.infile}")
 
     ##Check first if current hdr has incorrect offset
-    if hdr["header offset"] != labsize:
+    orig_off = int(hdr["header offset"])
+    if int(orig_off) != labsize:
         ##Backup existing hdr if dest does not exist
         ##  - assume already backed up if it does exist
         bakhdr = args.inhdr+args.bakext
@@ -70,7 +71,8 @@ def main():
             print(f"Moving original hdr to {bakhdr}")
             shutil.copyfile(args.inhdr,bakhdr)
         else:
-            print(f"File {bakhdr}, assuming it is the original hdr already copied")
+            print(f"File {bakhdr} exists, assuming it is the original"\
+                    " hdr already copied")
         ##Update offset in dict
         hdr["header offset"] = labsize
         ##Write updated hdr
