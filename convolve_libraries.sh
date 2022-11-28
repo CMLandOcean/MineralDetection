@@ -1,3 +1,12 @@
+#!/bin/bash
+################################################################################
+# Script to convolve spectral libraries for Tetracorder                        #
+# 30 November 2022                                                             #
+# Version 1                                                                    #
+# By ASU Carbon Mapper Land and Oceans Team                                    #
+# Original source code by Roger Clark et al. 
+################################################################################
+
 HDR_FILE=${1} # ENVI hdr file with wavelengths and resol defined
 SL1_DIR=${2} # path to sl1
 TET_CMD_BASE=${3} # path to t1
@@ -7,21 +16,78 @@ SENSOR_LET=${6} # one letter ID for sensor configuration
 SETUP_DIR=${7:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
 DEL_RANGES=${8:-0-400,1300-1500,1800-2000}
 
-# assumes inputs are in nm not microns
+################################################################################
+# Help                                                                         #
+################################################################################
+Help()
+{
+   # Display Help
+   echo "Convolve reference spectral libraries for Tetracorder"
+   echo "By ASU Carbon Mapper Land and Oceans Team    "
+   echo "Version 1 (November 2022)"
+   echo
+   echo "Syntax: sh convolve_libraries.sh [-h] [HDR_FILE] [SL1_DIR] [TET_CMD_BASE] "
+   echo "             [SENSOR_ID] [SENSOR_YR] [SENSOR_LET] [SETUP_DIR] [DEL_RANGES]"
+   echo "inputs:"
+   echo "1    hdr file with wavelengths and resolution in nanometers"
+   echo "2    Directory sl1 with reference libraries"
+   echo "3    Tetracorder commands base directory"
+   echo "4    Short keyword for sensor"
+   echo "5    Sensor configuration year"
+   echo "6    Letter to indicate sensor configuration version within a year"
+   echo "7    (Optional) Version of tetracorder commands"
+   echo "8    (Optional) Comma separated list of deleted channel wavelengths in nm"
+   echo "options:"
+   echo "h     Print this Help."
+   echo
+    echo "example usage:"
+    echo "                              1         2        3            4           5           6          7        8 "
+    echo "sh convolve_libraries.sh  HDR_FILE   SL1_DIR  TET_CMD_BASE SENSOR_ID  SENSOR_YR SENSOR_LET [SETUP_DIR] [DEL_RANGES]"
+    echo "sh convolve_libraries.sh example.hdr   sl1        t1        anextgen     2020        a   [tetracorder5.27a.cmds] [0-400,1300-1500,1800-2000]"
+    echo 
+    echo "an example hdr file is located at: example/input/ang20200712t201415_corr_v2y1_img.hdr "
+    echo "default values are indicated for optional inputs: SETUP_DIR and DEL_RANGES"
+   echo
+}
 
-####################################
-# SETUP THINGS                     #
-####################################
+# Get the options
+while getopts ":h" option; do
+   case $option in
+      h) # display Help
+         Help
+         exit;;
+   esac
+done
+
+if [ -z "$6" ]
+then
+	echo "ERROR: not enough parameters supplied"
+    echo 
+	echo "example usage:"
+#                                       1         2        3            4           5           6          7        8
+	echo "sh convolve_libraries.sh  HDR_FILE   SL1_DIR  TET_CMD_BASE SENSOR_ID  SENSOR_YR SENSOR_LET [SETUP_DIR] [DEL_RANGES]"
+    echo "sh convolve_libraries.sh example.hdr   sl1        t1        anextgen     2020        a   [tetracorder5.27a.cmds] [0-400,1300-1500,1800-2000]"
+    echo 
+	echo "exit 1"
+	exit 1
+fi
+
+################################################################################
+# Setup                                                                        #
+################################################################################
 
 # define paths
 current_dir=${PWD}
 HDR_ABS_FILE=`readlink -f ${HDR_FILE}`
 SL1_ABS_DIR=`readlink -f ${SL1_DIR}`
+TET_ABS_BASE=`readlink -f ${TET_CMD_BASE}`
 
 # cd into library06.conv dir
 cd $SL1_ABS_DIR/usgs/library06.conv
 
-# save waves.txt from hdr
+# Save waves.txt and resol.txt                                                 #
+echo "Making waves.txt and resol.txt from hdr file"
+
 awk '/wavelength =/, /}/ {print}' ${HDR_ABS_FILE} | \
 	sed -e 's/[^0-9.]/ /g' -e 's/^ *//g' -e 's/ *$//g' | \
 	tr -s ' ' | sed 's/ /\n/g' | \
@@ -52,9 +118,9 @@ S_LIBNAME=s06${SENSOR2}${YR2}${LET1}
 # define research library name
 R_LIBNAME=r06${SENSOR2}${YR2}${LET1}
 
-####################################
+################################################################################
 # SPECTRAL LIBRARY 06 CONVOLUTIONS #
-####################################
+################################################################################
 
 # make start file 
 ./make.new.convol.library.start.file  ${S_LIBNAME} ${N_CHANS} \
@@ -70,9 +136,12 @@ spsetwave startfiles/${S_LIBNAME}.start   18  6  12  force
 # make convolved library 06
 ./mak.convol.library ${S_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR_ID}${YR2} 12 noX
 
-####################################
-# RESERACH LIBRARY 06 CONVOLUTIONS #
-####################################
+echo "Spectral Library 06 convolution complete"
+echo "Moving onto Research Library 06 convolution"
+
+################################################################################
+# RESEARCH LIBRARY 06 CONVOLUTIONS #
+################################################################################
 
 # change to research library directory
 cd $SL1_ABS_DIR/usgs/rlib06
@@ -101,7 +170,9 @@ cat restartfiles/r.foo | sed -e "s/ivfl=${S_LIBNAME}/ivfl=${R_LIBNAME}     /" \
 # make convolved research library	
 ./mak.convol.library ${R_LIBNAME:0:7} ${LET1} ${N_CHANS} ${SENSOR2}${YR2}${LET1} 12 noX
 
+echo "Research Library 06 convolution complete"
 echo "Libary convolutions complete for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
+echo "Moving onto making other necessary files"
 
 ####################################
 # OTHER NECESSARY FILES            #
@@ -109,12 +180,12 @@ echo "Libary convolutions complete for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 # Make DATASETS file
 echo "restart= r1-${SENSOR2}${YR2}${LET1}" \
-	> $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
+	> $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
 
 echo "DATASETS file made to use ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 # path to restart file in t1 directory
-RESTART_PATH=$TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
+RESTART_PATH=$TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${SENSOR2}${YR2}${LET1}
 
 # Copy restart file from 06.conv to t1 directory
 cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $RESTART_PATH
@@ -122,7 +193,7 @@ cp $SL1_ABS_DIR/usgs/library06.conv/restartfiles/r.$S_LIBNAME $RESTART_PATH
 # correct restart file name in restart file
 sed -i.bak "12 s/irfl=r.s06/irfl=r1-/g" $RESTART_PATH
 # correct rlib name in restart file
-sed -i.bak "26 s/*unasnd*/$R_LIBNAME/g" $RESTART_PATH
+sed -i.bak "26 s/*unasnd\*/$R_LIBNAME/g" $RESTART_PATH
 # correct slib name in restart file
 sed -i.bak "29 s/splib06b/$S_LIBNAME/g" $RESTART_PATH
 
@@ -163,8 +234,14 @@ make_del_channels () {
     echo  " c # ${SENSOR_ID}_${SENSOR_YR}${LET1}" >> $1
 }
 ## Overall call:
-make_del_channels $TET_CMD_BASE/tetracorder.cmds/$SETUP_DIR/DELETED.channels/delete_${SENSOR_ID}_${SENSOR_YR}${LET1} waves.txt ${DEL_RANGES}
+make_del_channels $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/DELETED.channels/delete_${SENSOR_ID}_${SENSOR_YR}${LET1} waves.txt ${DEL_RANGES}
 
 echo "DELETED.channels file made for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 cd $current_dir
+
+
+echo "Libary convolutions complete for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
+echo "Use dataset keyword ${SENSOR_ID}_${SENSOR_YR}${LET1} to use these libraries in tetracorder"
+
+
