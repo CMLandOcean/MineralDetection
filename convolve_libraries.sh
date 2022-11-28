@@ -121,6 +121,10 @@ R_LIBNAME=r06${SENSOR2}${YR2}${LET1}
 # SPECTRAL LIBRARY 06 CONVOLUTIONS #
 ################################################################################
 
+# replace first line with copy of second line in splib06b.list-h.1
+NEWLINE=`head -2 splib06b.list-h.1 | tail -1`
+sed -i.bak "/98  Acmite/c\\${NEWLINE}" splib06b.list-h.1
+
 # make start file 
 ./make.new.convol.library.start.file  ${S_LIBNAME} ${N_CHANS} \
 	"Convolved ${SENSOR_ID} ${SENSOR_YR} ${N_CHANS} ch library" \
