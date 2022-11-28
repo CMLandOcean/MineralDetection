@@ -42,7 +42,7 @@ Help()
     echo "sh run_tetracorder.sh  TET_OUT_DIR        REFL_FILE       DATASET       TET_CMD_BASE  [SCALE] [TMP_DIR]   [SETUP_DIR]"
     echo "sh run_tetracorder.sh example/output  example/input/img anextgen_2020a      .            [1]    [/tmp] [tetracorder5.27a.cmds]"
     echo 
-    echo "an example reflectance file is located at: example/input/ang20200712t201415_corr_v2y1_img "
+    echo "an example reflectance file may be located at: example/input/ang20200712t201415_corr_v2y1_img "
     echo "default values are indicated for optional inputs: SCALE, TMP_DIR, and SETUP_DIR"
 
    echo

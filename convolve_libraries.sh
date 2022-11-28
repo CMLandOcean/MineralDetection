@@ -1,18 +1,17 @@
 #!/bin/bash
 ################################################################################
-# Script to convolve spectral libraries for Tetracorder                        #
+# Script to convolve spectral libraries for Tetracorder 5.27a                  #
 # 30 November 2022                                                             #
 # Version 1                                                                    #
 # By ASU Carbon Mapper Land and Oceans Team                                    #
-# Original source code by Roger Clark et al. 
 ################################################################################
 
-HDR_FILE=${1} # ENVI hdr file with wavelengths and resol defined
+HDR_FILE=${1} # ENVI hdr file with wavelengths and fwhm
 SL1_DIR=${2} # path to sl1
-TET_CMD_BASE=${3} # path to t1
-SENSOR_ID=${4} # sensor ID name eg GAO. first two letters used for ID
-SENSOR_YR=${5} # year for sensor configuration. last two letters used for ID
-SENSOR_LET=${6} # one letter ID for sensor configuration
+TET_CMD_BASE=${3} # path to tetracorder base directory
+SENSOR_ID=${4} # sensor ID name
+SENSOR_YR=${5} # year for sensor configuration. l
+SENSOR_LET=${6} # one letter for sensor configuration version
 SETUP_DIR=${7:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
 DEL_RANGES=${8:-0-400,1300-1500,1800-2000}
 
@@ -22,14 +21,14 @@ DEL_RANGES=${8:-0-400,1300-1500,1800-2000}
 Help()
 {
    # Display Help
-   echo "Convolve reference spectral libraries for Tetracorder"
+   echo "Convolve reference spectral libraries for Tetracorder 5.27a"
    echo "By ASU Carbon Mapper Land and Oceans Team    "
-   echo "Version 1 (November 2022)"
+   echo "Version 1, November 2022"
    echo
    echo "Syntax: sh convolve_libraries.sh [-h] [HDR_FILE] [SL1_DIR] [TET_CMD_BASE] "
    echo "             [SENSOR_ID] [SENSOR_YR] [SENSOR_LET] [SETUP_DIR] [DEL_RANGES]"
    echo "inputs:"
-   echo "1    hdr file with wavelengths and resolution in nanometers"
+   echo "1    ENVI hdr file with wavelengths and resolution in nanometers"
    echo "2    Directory sl1 with reference libraries"
    echo "3    Tetracorder commands base directory"
    echo "4    Short keyword for sensor"
@@ -45,7 +44,7 @@ Help()
     echo "sh convolve_libraries.sh  HDR_FILE   SL1_DIR  TET_CMD_BASE SENSOR_ID  SENSOR_YR SENSOR_LET [SETUP_DIR] [DEL_RANGES]"
     echo "sh convolve_libraries.sh example.hdr   sl1        t1        anextgen     2020        a   [tetracorder5.27a.cmds] [0-400,1300-1500,1800-2000]"
     echo 
-    echo "an example hdr file is located at: example/input/ang20200712t201415_corr_v2y1_img.hdr "
+    echo "an example hdr file may be located at: example/input/ang20200712t201415_corr_v2y1_img.hdr "
     echo "default values are indicated for optional inputs: SETUP_DIR and DEL_RANGES"
    echo
 }
@@ -222,7 +221,6 @@ make_del_channels () {
     # Create deleted channels file (arg 1) from wavelen def file (arg 2) and ranges specified with a comma-delimited list (arg 3)
     # example usage:
     # make_del_channels output.txt waves.txt "0-400, 1300-1500, 1800-2000"
-    # DEL_RANGES=${8}
 
     # For each row of del_ranges, with del1 and del2
     rm -f $1
