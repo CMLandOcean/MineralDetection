@@ -4,13 +4,14 @@ cmdver="5.27a"
 tetver=5.27
 
 ##Directory where tetracorder source will be downloaded and compiled
-TC_BUILD_DIR=/data/gdcsdata/CarbonMapper/software/tetracorder-build-527
+TC_BUILD_DIR=/data/gdcsdata/CarbonMapper/software/checkbuild1129
 ##Install prefix - tetracorder will be installed at 
 ## ${TCPREFIX/bin}
-TCPREFIX=/data/gdcsdata/CarbonMapper/software/apps/tetracorder/${tetver}
+TCPREFIX=/data/gdcsdata/CarbonMapper/software/apps/tetracorder/${tetver}_check
 
 ## Various data files and the USGS library will be placed here
-TC_DATA=/data/gdcsdata/CarbonMapper/software/tetracorder-essentials
+TC_DATA=/data/gdcsdata/CarbonMapper/software/checkdata1129
+
 
 ## Clone the tetracorder repository to the build directory
 git clone https://github.com/PSI-edu/spectroscopy-tetracorder "${TC_BUILD_DIR}/"
@@ -26,8 +27,9 @@ mkdir -p "${TCPREFIX}"
 ##Need original, not ratfor90
 mkdir -p dependencies/ratfor
 pushd dependencies/ratfor 
-wget http://sepwww.stanford.edu/lib/exe/fetch.php?media=sep:software:ratfor77.tar.gz -O ratfor77.tar.gz
-tar -xzf ratfor77.tar.gz
+# wget http://sepwww.stanford.edu/lib/exe/fetch.php?media=sep:software:ratfor77.tar.gz -O ratfor77.tar.gz
+# tar -xzf ratfor77.tar.gz
+##Ugh stanford closed their access to this website
 pushd ratfor77
 # ./configure --prefix "${TCPREFIX}"
 SEPBINDIR=. make
