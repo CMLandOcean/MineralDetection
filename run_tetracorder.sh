@@ -474,7 +474,8 @@ gdal_calc.py -A group.2um/sulfate_kalun150c.fit.gz \
 
 # Buddingtonite endmembers
 gdal_calc.py -A group.2um/feldspar_buddingtonite_ammonium.fit.gz \
---outfile=03_mineral_mix/group2um/buddingtonite.tif --calc="A"
+-B group.2um/feldspar_buddington.namont2.fit.gz \
+--outfile=03_mineral_mix/group2um/buddingtonite.tif --calc="A+B"
 
 # Calcite endmembers
 gdal_calc.py -A group.2um/carbonate_calcite.fit.gz \
