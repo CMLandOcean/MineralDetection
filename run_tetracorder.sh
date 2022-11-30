@@ -81,7 +81,6 @@ TET_OUT_DIR_ABS=`readlink -f ${TET_OUT_DIR}`
 TET_ABS_BASE=`readlink -f ${T1_DIR}`
 TET_SETUP=${TET_ABS_BASE}/tetracorder.cmds/$SETUP_DIR/cmd-setup-tetrun
 REFL_ABS_FILE=`readlink -f ${REFL_FILE}`
-OUTPUT_ABS_DIR=`readlink -f ${TET_OUT_DIR}`
 local_refl=`basename ${REFL_FILE}`
 local_output=`basename ${TET_OUT_DIR}`
 current_dir=${PWD}
@@ -171,10 +170,10 @@ sed -i.bak "/^iyfl=/c \iyfl=${SLIB_PATH}" $TET_ABS_BASE/tetracorder.cmds/$SETUP_
 
 # run cmd-setup-tetrun to copy files and set up run
 # temperature and pressure constraints are set here
-${TET_SETUP} ${TET_OUT_DIR} ${DATASET} cube ${TMP_DIR}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar
+${TET_SETUP} ${TET_OUT_DIR_ABS} ${DATASET} cube ${TMP_DIR}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar
 
 # cd into tet output directory
-cd ${TET_OUT_DIR}
+cd ${TET_OUT_DIR_ABS}
 # save filename of cubepath in output directory
 echo ${REFL_ABS_FILE} > cubepath.txt
 
@@ -190,7 +189,7 @@ date
 
 # quick check if tetracorder output directory exists
 
-if [ ! -d "${TET_OUT_DIR_ABS}" ]
+if [ ! -d "${TET_OUT_DIR_ABS}/group.1um/epidote.fit.gz" ]
 then
 	echo "ERROR: No Tetracorder output. Something went wrong"
 	echo "exit 1"
