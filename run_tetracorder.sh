@@ -74,6 +74,13 @@ fi
 #### PREPARE FOR TETRACORDER ####
 
 # define paths
+# Tetracorder can create multiple levels of new directory, but doesn't like it if full output path already exists
+# So here we just make everything up to the last level of TET_OUT_DIR exists
+levdown=`dirname ${TET_OUT_DIR}`
+if [ "${levdown}" != "." ]; then
+    echo Creating directory ${levdown}
+    mkdir -p ${levdown}
+fi
 TET_OUT_DIR_ABS=`readlink -f ${TET_OUT_DIR}`
 TET_ABS_BASE=`readlink -f ${TET_CMD_BASE}`
 TET_SETUP=${TET_ABS_BASE}/tetracorder.cmds/$SETUP_DIR/cmd-setup-tetrun
@@ -95,7 +102,7 @@ then
 	exit 1
 fi
 
-DATASET_PATH=`$TET_ABS_BASE/DATASETS/$DATASET`
+DATASET_PATH="${TET_ABS_BASE}/tetracorder.cmds/$SETUP_DIR/DATASETS/$DATASET"
 # check if dataset keyword is valid
 if [ ! -f "$DATASET_PATH" ]
 then
@@ -116,6 +123,7 @@ then
 fi
 
 # copy cube and hdr to tmp directory
+mkdir -p ${TMP_DIR}
 cd ${TMP_DIR}
 cp -rp ${REFL_ABS_FILE} .
 cp -rp ${REFL_ABS_FILE}.hdr .
