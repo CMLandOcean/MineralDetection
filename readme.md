@@ -2,6 +2,21 @@
 
 Code for implementing Tetracorder for Carbon Mapper applications
 
+# Installing tetracorder
+
+A script `tetracorder_install_asu.sh` is included in the repository to help get tetracorder and its prerequisitess correctly installed on a Linux-based system. We have only tested this script on a CentosOS 7 cluster, so some adjustements may be needed, especially to get a working version of davinci. It is recommended that the commands in this script be run interactively, so errors will be more noticable. The user can specify the install location using the `TCPREFIX` variable in the script. After completion of the install, some environmental variables need to be updated for proper functioning of the two scripts below:
+
+Required:
+```
+$ export PATH="${TCPREFIX}/bin:$PATH"
+$ export LD_LIBRARY_PATH="${TCPREFIX}/lib:$LD_LIBRARY_PATH"
+```
+Optional:
+```
+$ export MANPATH="${TCPREFIX}/share/man:$MANPATH"
+```
+The above export commands can be placed in a shell init script, like $HOME/.bashrc, so that these variables do not need to be set each time.
+
 # Pre tetracorder
 
 For each instrument configuration, use the script `convolve_libraries.sh` to prepare the reference libraries and the other necessary files to support a Tetracorder analysis. These files only need to be prepared once for each configuration of the instrument supplying the data. 
