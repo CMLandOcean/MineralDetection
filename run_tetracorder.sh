@@ -1,15 +1,15 @@
 #!/bin/bash
 ################################################################################
-# Script to Run Tetracorder 5.27a                        #
+# Script to Run Tetracorder 5.27a                                              #
 # 30 November 2022                                                             #
 # Version 1                                                                    #
 # ASU Carbon Mapper Land and Oceans Team                                       #
 ################################################################################
 
-TET_OUT_DIR=${1} # output directory
+TET_OUT_DIR=${1} # new output directory
 REFL_FILE=${2} # reflectance file
 DATASET=${3} # instrument and libraries to use
-TET_CMD_BASE=${4} # location of t1 eg /data/gdcsdata/CarbonMapper/software/tetracorder-build-527
+T1_DIR=${4} # location of t1, where to find tetracorder.cmds/
 SCALE=${5:-1} # Scale factor of image
 TMP_DIR=${6:-/tmp} # temp directory for copying image 
 SETUP_DIR=${7:-tetracorder5.27a.cmds} # folder where cmd-setup-tetrun is
@@ -22,10 +22,10 @@ Help()
    # Display Help
    echo "Run Tetracorder 5.27a on reflectance file"
    echo "By ASU Carbon Mapper Land and Oceans Team    "
-   echo "Version 1 (November 2022)"
+   echo "Version 1, November 2022"
    echo
    echo "Syntax: sh run_tetracorder.sh [-h] [TET_OUT_DIR] [REFL_FILE] [DATASET] "
-   echo "             [TET_CMD_BASE] [SCALE] [TMP_DIR] [SETUP_DIR]"
+   echo "             [T1_DIR] [SCALE] [TMP_DIR] [SETUP_DIR]"
    echo "inputs:"
    echo "1    new directory for outputs"
    echo "2    reflectance file to analyze"
@@ -38,11 +38,10 @@ Help()
    echo "h     Print this Help."
    echo
     echo "example usage:"
-    echo "                              1                2             3              4           5         6          7     "
-    echo "sh run_tetracorder.sh  TET_OUT_DIR        REFL_FILE       DATASET       TET_CMD_BASE  [SCALE] [TMP_DIR]   [SETUP_DIR]"
-    echo "sh run_tetracorder.sh example/output  example/input/img anextgen_2020a      .            [1]    [/tmp] [tetracorder5.27a.cmds]"
+    echo "                              1        2            3            4        5        6          7     "
+    echo "sh run_tetracorder.sh  TET_OUT_DIR  REFL_FILE    DATASET       T1_DIR  [SCALE] [TMP_DIR]   [SETUP_DIR]"
+    echo "sh run_tetracorder.sh     output    refl_img   anextgen_2020a    t1      [1]    [/tmp]   [tetracorder5.27a.cmds]"
     echo 
-    echo "an example reflectance file may be located at: example/input/ang20200712t201415_corr_v2y1_img "
     echo "default values are indicated for optional inputs: SCALE, TMP_DIR, and SETUP_DIR"
 
    echo
@@ -57,10 +56,6 @@ while getopts ":h" option; do
    esac
 done
 
-################################################################################
-# Setup Paths and check inputs                                                                 #
-################################################################################
-
 if [ -z "$5" ]
 then
 	echo "ERROR: not enough parameters"
@@ -70,8 +65,9 @@ then
 	exit 1
 fi
 
-# assumes that sl1 is in TET_CMD_BASE/sl1
-#### PREPARE FOR TETRACORDER ####
+################################################################################
+# Prepare for Tetracorder                                                      #
+################################################################################
 
 # define paths
 # Tetracorder can create multiple levels of new directory, but doesn't like it if full output path already exists
@@ -82,7 +78,7 @@ if [ "${levdown}" != "." ]; then
     mkdir -p ${levdown}
 fi
 TET_OUT_DIR_ABS=`readlink -f ${TET_OUT_DIR}`
-TET_ABS_BASE=`readlink -f ${TET_CMD_BASE}`
+TET_ABS_BASE=`readlink -f ${T1_DIR}`
 TET_SETUP=${TET_ABS_BASE}/tetracorder.cmds/$SETUP_DIR/cmd-setup-tetrun
 REFL_ABS_FILE=`readlink -f ${REFL_FILE}`
 OUTPUT_ABS_DIR=`readlink -f ${TET_OUT_DIR}`
@@ -129,27 +125,52 @@ cp -rp ${REFL_ABS_FILE} .
 cp -rp ${REFL_ABS_FILE}.hdr .
 cd $current_dir
 
-echo 'copied cube and hdr to temporary directory ${TMP_DIR}'
+echo "copied cube and hdr to temporary directory ${TMP_DIR}"
 date
 
 # replace loctaion of t1 in line 20 of cmd-setup-tetrun
 sed -i.bak "20 s,source=/t1,source=$TET_ABS_BASE,g" $TET_SETUP
 
 LIB_CODE=`cat ${TET_ABS_BASE}/tetracorder.cmds/${SETUP_DIR}/DATASETS/${DATASET} | sed 's/restart= r1-//g'`
+
 # copy convolved rlib library to tmp directory
+# make sure that r06 convolved library exists 
+# we assume that sl1 is in T1_DIR/sl1
+if [ ! -f "${TET_ABS_BASE}/sl1/usgs/rlib06/r06${LIB_CODE}" ]
+then
+   echo "ERROR: No convolved r06 library found"
+   echo "You may need to run convolve_libraries.sh."
+   echo "exit 1"
+   exit 1
+fi
 RLIB_PATH=${TMP_DIR}/r06${LIB_CODE}
 cp -rp ${TET_ABS_BASE}/sl1/usgs/rlib06/r06${LIB_CODE} $RLIB_PATH
 # replace location of convolved rlib in restart file
 sed -i.bak " /^iwfl=/c \iwfl=${RLIB_PATH}" $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
+
 # copy convolved s06 library to tmp directory
+# make sure that s06 convolved library exists 
+# we assume that sl1 is in T1_DIR/sl1
+
+if [ ! -f "${TET_ABS_BASE}/sl1/usgs/library06.conv/s06${LIB_CODE}" ]
+then
+   echo "ERROR: No convolved s06 library found"
+   echo "You may need to run convolve_libraries.sh."
+   echo "exit 1"
+   exit 1
+fi
+
 SLIB_PATH=${TMP_DIR}/s06${LIB_CODE}
 cp -rp ${TET_ABS_BASE}/sl1/usgs/library06.conv/s06${LIB_CODE} $SLIB_PATH
 # replace location of convolved splib06 in restart file
 sed -i.bak "/^iyfl=/c \iyfl=${SLIB_PATH}" $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/restart_files/r1-${LIB_CODE}
 
-#### SETUP AND RUN TETRACORDER ####
+################################################################################
+# Setup and Run  Tetracorder                                                   #
+################################################################################
 
 # run cmd-setup-tetrun to copy files and set up run
+# temperature and pressure constraints are set here
 ${TET_SETUP} ${TET_OUT_DIR} ${DATASET} cube ${TMP_DIR}/${local_refl} ${SCALE} -T -20 80 C -P .5 1.5 bar
 
 # cd into tet output directory
@@ -158,17 +179,20 @@ cd ${TET_OUT_DIR}
 echo ${REFL_ABS_FILE} > cubepath.txt
 
 # Run tetracorder
+echo 'now starting tetracorder'
 time ./cmd.runtet cube ${TMP_DIR}/${local_refl}  >& cmd.runtet.out
 echo 'tetracorder finished'
 date
 
-#### POST TETRACORDER ####
+################################################################################
+# Post for Tetracorder                                                         #
+################################################################################
 
 # quick check if tetracorder output directory exists
 
 if [ ! -d "${TET_OUT_DIR_ABS}" ]
 then
-	echo "ERROR: No Tetracorder output"
+	echo "ERROR: No Tetracorder output. Something went wrong"
 	echo "exit 1"
 	exit 1
 fi
@@ -178,7 +202,6 @@ cd ${TET_OUT_DIR_ABS}
 echo 'starting post tetracorder'
 
 echo 'editing hdr files'
-cd ${TET_OUT_DIR_ABS}
 
 # remove extra spaces
 sed -s -i.bak 's/^  *//' group.1um/*.hdr
@@ -248,12 +271,12 @@ mkdir 02_minerals_only/group2um
 
 # Group 1 um
 
-# Epidote endmembers
+# Epidote mineral endmembers
 gdal_calc.py -A group.1um/epidote.fit.gz \
 -B group.1um/fe2+generic_br33a_bioqtzmonz_epidote.fit.gz \
 --outfile=02_minerals_only/group1um/epidote.tif --calc="A+B"
 
-# Goethite endmembers
+# Goethite mineral endmembers
 gdal_calc.py -A group.1um/fe3+_goethite.medgr.ws222.fit.gz \
 -B group.1um/fe3+_goethite.fingr.fit.gz \
 -C group.1um/fe3+_goethite.medcoarsegr.mpc.trjar.fit.gz \
@@ -261,7 +284,7 @@ gdal_calc.py -A group.1um/fe3+_goethite.medgr.ws222.fit.gz \
 -E group.1um/fe3+_goethite.lepidocrosite.fit.gz \
 --outfile=02_minerals_only/group1um/goethite.tif --calc="A+B+C+D+E"
 
-# Hematite endmembers
+# Hematite mineral endmembers
 gdal_calc.py -A group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
 -B group.1um/fe3+_hematite.fine.gr.fe2602.fit.gz \
 -C group.1um/fe3+_hematite.fine.gr.ws161.fit.gz \
@@ -271,17 +294,18 @@ gdal_calc.py -A group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
 -G group.1um/fe3+_hematite.fine.gr.gds76.fit.gz \
 --outfile=02_minerals_only/group1um/hematite.tif --calc="A+B+C+D+E+F+G"
 
-# Nontronite endmembers
+# Nontronite mineral endmembers
 gdal_calc.py -A group.1um/fe3+_smectite_nontronite.fit.gz \
 --outfile=02_minerals_only/group1um/nontronite.tif --calc="A"
 
-# Pyrite endmembers
-gdal_calc.py -A group.1um/sulfide_pyrite.fit.gz \
---outfile=02_minerals_only/group1um/pyrite.tif --calc="A"
+# Pyrite mineral endmembers
+gdal_calc.py -A group.1um/sulfide_copper_chalcopyrite.fit.gz \
+-B group.1um/sulfide_pyrite.fit.gz \
+--outfile=02_minerals_only/group1um/pyrite.tif --calc="A+B"
 
 # Group 2 um
 
-# Alunite endmembers
+# Alunite mineral endmembers
 gdal_calc.py -A group.2um/sulfate_kalun150c.fit.gz \
 -B group.2um/sulfate_kalun250c.fit.gz \
 -C group.2um/sulfate_kalun450c.fit.gz \
@@ -296,15 +320,15 @@ gdal_calc.py -A group.2um/sulfate_kalun150c.fit.gz \
 -L group.2um/sulfate_alunNa78.450c.fit.gz \
 --outfile=02_minerals_only/group2um/alunite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L"
 
-# Buddingtonite endmembers
+# Buddingtonite mineral endmembers
 gdal_calc.py -A group.2um/feldspar_buddington.namont2.fit.gz \
 --outfile=02_minerals_only/group2um/buddingtonite.tif --calc="A"
 
-# Calcite endmembers
+# Calcite mineral endmembers
 gdal_calc.py -A group.2um/carbonate_calcite.fit.gz \
 --outfile=02_minerals_only/group2um/calcite.tif --calc="A"
 
-# Chlorite endmembers
+# Chlorite mineral endmembers
 gdal_calc.py -A group.2um/chlorite.fit.gz \
 -B group.2um/chlorite_clinochlore.fit.gz \
 -C group.2um/chlorite_clinochlore.nmnh83369.fit.gz \
@@ -315,42 +339,42 @@ gdal_calc.py -A group.2um/chlorite.fit.gz \
 -H group.2um/chlorite_thuringite.fit.gz \
 --outfile=02_minerals_only/group2um/chlorite.tif --calc="A+B+C+D+E+F+G+H"
 
-# Dickite endmembers
+# Dickite mineral endmembers
 gdal_calc.py -A group.2um/kaolgrp_dickite.fit.gz \
 --outfile=02_minerals_only/group2um/dickite.tif --calc="A"
 
-# Dolomite endmembers
+# Dolomite mineral endmembers
 gdal_calc.py -A group.2um/carbonate_dolomite.fit.gz \
 --outfile=02_minerals_only/group2um/dolomite.tif --calc="A"
 
-# Epidote endmembers
+# Epidote mineral endmembers
 gdal_calc.py -A group.2um/epidote.fit.gz \
 --outfile=02_minerals_only/group2um/epidote.tif --calc="A"
 
-# Halloysite endmembers
+# Halloysite mineral endmembers
 gdal_calc.py -A group.2um/kaolgrp_halloysite.fit.gz \
 --outfile=02_minerals_only/group2um/halloysite.tif --calc="A"
 
-# Illite endmembers
+# Illite mineral endmembers
 gdal_calc.py -A group.2um/micagrp_illite.fit.gz \
 -B group.2um/micagrp_illite.gds4.fit.gz \
 -C group.2um/smectite_ammonillsmec.fit.gz \
 -D group.2um/micagrp_illite.roscoelite.fit.gz \
 --outfile=02_minerals_only/group2um/illite.tif --calc="A+B+C+D"
 
-# Jarosite endmembers
+# Jarosite mineral endmembers
 gdal_calc.py -A group.2um/sulfate_ammonjarosite.fit.gz \
 -B group.2um/sulfate_jarosite-Na.fit.gz \
 -C group.2um/sulfate_jarosite-K.fit.gz \
 -D group.2um/sulfate_jarosite-lowT.fit.gz \
 --outfile=02_minerals_only/group2um/jarosite.tif --calc="A+B+C+D"
 
-# Kaolinite endmembers
+# Kaolinite mineral endmembers
 gdal_calc.py -A group.2um/kaolgrp_kaolinite_wxl.fit.gz \
 -B group.2um/kaolgrp_kaolinite_pxl.fit.gz \
 --outfile=02_minerals_only/group2um/kaolinite.tif --calc="A+B"
 
-# Montmorillonite endmembers
+# Montmorillonite mineral endmembers
 gdal_calc.py -A group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
 -B group.2um/smectite_montmorillonite_fe_swelling.fit.gz \
 -C group.2um/smectite_montmorillonite_ca_swelling.fit.gz \
@@ -361,18 +385,18 @@ gdal_calc.py -A group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
 -H group.2um/organic_tce+montswy.fit.gz \
 --outfile=02_minerals_only/group2um/montmorillonite.tif --calc="A+B+C+D+E+F+G+H"
 
-# Muscovite endmembers
+# Muscovite mineral endmembers
 gdal_calc.py -A group.2um/micagrp_muscovite-medhigh-Al.fit.gz \
 -B group.2um/micagrp_muscovite-low-Al.fit.gz \
 -C group.2um/micagrp_muscoviteFerich.fit.gz \
 -D group.2um/prehnite+muscovite.fit.gz \
 --outfile=02_minerals_only/group2um/muscovite.tif --calc="A+B+C+D"
 
-# Nontronite endmembers
+# Nontronite mineral endmembers
 gdal_calc.py -A group.2um/smectite_nontronite_swelling.fit.gz \
 --outfile=02_minerals_only/group2um/nontronite.tif --calc="A"
 
-# Pyrophyllite endmembers
+# Pyrophyllite mineral endmembers
 gdal_calc.py -A group.2um/pyrophyllite.fit.gz \
 --outfile=02_minerals_only/group2um/pyrophyllite.tif --calc="A"
 
@@ -380,14 +404,14 @@ gdal_calc.py -A group.2um/pyrophyllite.fit.gz \
 # Minerals and dominant mixtures/coatings
 #########################################
 
-rm -rf 03_mineral_mix
-mkdir 03_mineral_mix
-mkdir 03_mineral_mix/group1um
-mkdir 03_mineral_mix/group2um
+rm -rf 03_minerals_mix
+mkdir 03_minerals_mix
+mkdir 03_minerals_mix/group1um
+mkdir 03_minerals_mix/group2um
 
 # Group 1
 
-# Goethite endmembers
+# Goethite minerals and dominant mixtures
 gdal_calc.py -A group.1um/fe3+_goethite.medgr.ws222.fit.gz \
 -B group.1um/fe3+_goethite.fingr.fit.gz \
 -C group.1um/fe3+_goethite.medcoarsegr.mpc.trjar.fit.gz \
@@ -396,9 +420,9 @@ gdal_calc.py -A group.1um/fe3+_goethite.medgr.ws222.fit.gz \
 -F group.1um/fe3+_goethite+qtz.medgr.gds240.fit.gz \
 -G group.1um/fe3+_goethite.thincoat.fit.gz \
 -H group.1um/fe2+fe3+_chlor+goeth.propylzone.fit.gz \
---outfile=03_mineral_mix/group1um/goethite.tif --calc="A+B+C+D+E+F+G+H"
+--outfile=03_minerals_mix/group1um/goethite.tif --calc="A+B+C+D+E+F+G+H"
 
-# Hematite endmembers
+# Hematite minerals and dominant mixtures
 gdal_calc.py -A group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
 -B group.1um/fe3+_hematite.fine.gr.fe2602.fit.gz \
 -C group.1um/fe3+_hematite.fine.gr.ws161.fit.gz \
@@ -412,54 +436,51 @@ gdal_calc.py -A group.1um/fe3+_hematite.med.gr.gds27.fit.gz \
 -K group.1um/fe3+_hematite.med.gr.br25b.fit.gz \
 -L group.1um/fe3+_hematite.lg.gr.br25c.fit.gz \
 -M group.1um/fe3+_hematite.lg.gr.br34c.fit.gz \
---outfile=03_mineral_mix/group1um/hematite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
+--outfile=03_minerals_mix/group1um/hematite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M"
 
-# Epidote endmembers
+# Epidote minerals and dominant mixtures
 gdal_calc.py -A group.1um/epidote.fit.gz \
 -B group.1um/fe2+generic_br33a_bioqtzmonz_epidote.fit.gz \
---outfile=03_mineral_mix/group1um/epidote.tif --calc="A+B"
+--outfile=03_minerals_mix/group1um/epidote.tif --calc="A+B"
 
-# Nontronite endmembers
+# Nontronite minerals and dominant mixtures
 gdal_calc.py -A group.1um/fe3+_smectite_nontronite.fit.gz \
---outfile=03_mineral_mix/group1um/nontronite.tif --calc="A"
+--outfile=03_minerals_mix/group1um/nontronite.tif --calc="A"
 
-# Pyrite endmembers
+# Pyrite minerals and dominant mixtures
 gdal_calc.py -A group.1um/sulfide_copper_chalcopyrite.fit.gz \
 -B group.1um/sulfide_pyrite.fit.gz \
---outfile=03_mineral_mix/group1um/pyrite.tif --calc="A+B"
+--outfile=03_minerals_mix/group1um/pyrite.tif --calc="A+B"
 
 # Group 2
 
-# group 2 even areal mixtures
+# group 2 non dominant areal mixtures
 gdal_calc.py -A group.2um/alunite.5+musc.5.fit.gz \
 -B group.2um/alunite.33+kaol.33+musc.33.fit.gz \
 -C group.2um/alunite.5+kaol.5.fit.gz \
--D group.2um/pyroph.5+alunit.5.fit.gz \
--E group.2um/alunite+pyrophyl.fit.gz \
--F group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
--G group.2um/carbonate_calcite+dolomite.5.fit.gz \
--H group.2um/calcite+0.5Ca-mont.fit.gz \
--I group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
--J group.2um/carbonate_calcite+dolomite.5.fit.gz \
--K group.2um/carbonate_dolo+.5ca-mont.fit.gz \
--L group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
--M group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
--N group.2um/kaolin.5+muscov.medAl.fit.gz \
--O group.2um/kaolin.5+muscov.medhighAl.fit.gz \
--P group.2um/pyroph.5+mont0.5.fit.gz \
---outfile=03_mineral_mix/group2um/group2_amix.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P"
+-D group.2um/calcite+0.5Ca-mont.fit.gz \
+-E group.2um/carbonate_calcite+dolomite.5.fit.gz \
+-F group.2um/carbonate_dolo+.5ca-mont.fit.gz \
+-G group.2um/carbonate_dolomite.5+Na-mont.5.fit.gz \
+-H group.2um/sulfate-mix_gyp+jar+musc+dick.amix.fit.gz \
+-I group.2um/kaolin.5+muscov.medAl.fit.gz \
+-J group.2um/kaolin.5+muscov.medhighAl.fit.gz \
+-K group.2um/pyroph.5+mont0.5.fit.gz \
+--outfile=03_minerals_mix/group2um/group2_amix.tif --calc="A+B+C+D+E+F+G+H+I+J+K"
 
-# group 2 even intimate mixtures
+# group 2 non dominant intimate mixtures
 gdal_calc.py -A group.2um/feldspar_buddington.namont2.fit.gz \
 -B group.2um/feldspar_buddington.namont.fit.gz \
 -C group.2um/talc+carbonate.parkcity.fit.gz \
--D group.2um/muscovite+chlorite.fit.gz \
--E group.2um/kaolin+musc.intimat.fit.gz \
+-D group.2um/pyroph.5+alunit.5.fit.gz \
+-E group.2um/alunite+pyrophyl.fit.gz \
 -F group.2um/sulfate+kaolingrp_natroalun+dickite.fit.gz \
--G group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
---outfile=03_mineral_mix/group2um/group2_imix.tif --calc="A+B+C+D+E+F+G"
+-G group.2um/muscovite+chlorite.fit.gz \
+-H group.2um/kaolin+musc.intimat.fit.gz \
+-I group.2um/sulfate-mix_gypsum+jar+illite.intmix.fit.gz \
+--outfile=03_minerals_mix/group2um/group2_imix.tif --calc="A+B+C+D+E+F+G+H+I"
 
-# Alunite endmembers
+# Alunite minerals and dominant mixtures
 gdal_calc.py -A group.2um/sulfate_kalun150c.fit.gz \
 -B group.2um/sulfate_kalun250c.fit.gz \
 -C group.2um/sulfate_kalun450c.fit.gz \
@@ -478,22 +499,23 @@ gdal_calc.py -A group.2um/sulfate_kalun150c.fit.gz \
 -P group.2um/Kalun+kaol.intmx.fit.gz \
 -Q group.2um/Na-alun+kaol.intmx.fit.gz \
 -R group.2um/sulfate_ammonalunite.fit.gz \
---outfile=03_mineral_mix/group2um/alunite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R"
+--outfile=03_minerals_mix/group2um/alunite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N+O+P+Q+R"
 
-# Buddingtonite endmembers
+# Buddingtonite minerals and dominant mixtures
 gdal_calc.py -A group.2um/feldspar_buddingtonite_ammonium.fit.gz \
 -B group.2um/feldspar_buddington.namont2.fit.gz \
---outfile=03_mineral_mix/group2um/buddingtonite.tif --calc="A+B"
+--outfile=03_minerals_mix/group2um/buddingtonite.tif --calc="A+B"
 
-# Calcite endmembers
+# Calcite minerals and dominant mixtures
 gdal_calc.py -A group.2um/carbonate_calcite.fit.gz \
 -B group.2um/talc+calcite.parkcity.fit.gz \
 -C group.2um/calcite+0.2Na-mont.fit.gz \
 -D group.2um/carbonate_calcite+0.2kaolwxl.fit.gz \
 -E group.2um/carbonate_calcite0.7+kaol0.3.fit.gz \
---outfile=03_mineral_mix/group2um/calcite.tif --calc="A+B+C+D+E"
+-F group.2um/carbonate_calcite+0.2Ca-mont.fit.gz \
+--outfile=03_minerals_mix/group2um/calcite.tif --calc="A+B+C+D+E+F"
 
-# Chlorite endmembers
+# Chlorite minerals and dominant mixtures
 gdal_calc.py -A group.2um/chlorite.fit.gz \
 -B group.2um/chlorite_clinochlore.fit.gz \
 -C group.2um/chlorite_clinochlore.nmnh83369.fit.gz \
@@ -506,51 +528,51 @@ gdal_calc.py -A group.2um/chlorite.fit.gz \
 -J group.2um/prehnite+.50chlorite.fit.gz \
 -K group.2um/prehnite+.67chlorite.fit.gz \
 -L group.2um/prehnite+.75chlorite.fit.gz \
---outfile=03_mineral_mix/group2um/chlorite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L"
+--outfile=03_minerals_mix/group2um/chlorite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L"
 
-# Dickite endmembers
+# Dickite minerals and dominant mixtures
 gdal_calc.py -A group.2um/kaolgrp_dickite.fit.gz \
 -B group.2um/dick+musc+gyp+jar.amix.fit.gz \
---outfile=03_mineral_mix/group2um/dickite.tif --calc="A+B"
+--outfile=03_minerals_mix/group2um/dickite.tif --calc="A+B"
 
-# Dolomite endmembers
+# Dolomite minerals and dominant mixtures
 gdal_calc.py -A group.2um/carbonate_dolomite.fit.gz \
---outfile=03_mineral_mix/group2um/dolomite.tif --calc="A"
+--outfile=03_minerals_mix/group2um/dolomite.tif --calc="A"
 
-# Epidote endmembers
+# Epidote minerals and dominant mixtures
 gdal_calc.py -A group.2um/epidote.fit.gz \
---outfile=03_mineral_mix/group2um/epidote.tif --calc="A"
+--outfile=03_minerals_mix/group2um/epidote.tif --calc="A"
 
-# Halloysite endmembers
+# Halloysite minerals and dominant mixtures
 gdal_calc.py -A group.2um/kaolgrp_halloysite.fit.gz \
---outfile=03_mineral_mix/group2um/halloysite.tif --calc="A"
+--outfile=03_minerals_mix/group2um/halloysite.tif --calc="A"
 
-# Illite endmembers
+# Illite minerals and dominant mixtures
 gdal_calc.py -A group.2um/micagrp_illite.fit.gz \
 -B group.2um/micagrp_illite.gds4.fit.gz \
 -C group.2um/smectite_ammonillsmec.fit.gz \
 -D group.2um/micagrp_illite.roscoelite.fit.gz \
---outfile=03_mineral_mix/group2um/illite.tif --calc="A+B+C+D"
+--outfile=03_minerals_mix/group2um/illite.tif --calc="A+B+C+D"
 
-# Jarosite endmembers
+# Jarosite minerals and dominant mixtures
 gdal_calc.py -A group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
 -B group.2um/sulfate_ammonjarosite.fit.gz \
 -C group.2um/sulfate_jarosite-Na.fit.gz \
 -D group.2um/sulfate_jarosite-K.fit.gz \
 -E group.2um/sulfate_jarosite-lowT.fit.gz \
 -F group.2um/musc+jarosite.intimat.fit.gz \
---outfile=03_mineral_mix/group2um/jarosite.tif --calc="A+B+C+D+E+F"
+--outfile=03_minerals_mix/group2um/jarosite.tif --calc="A+B+C+D+E+F"
 
-# Kaolinite endmembers
+# Kaolinite minerals and dominant mixtures
 gdal_calc.py -A group.2um/kaolgrp_kaolinite_wxl.fit.gz \
 -B group.2um/kaolgrp_kaolinite_pxl.fit.gz \
 -C group.2um/kaolin.5+smect.5.fit.gz \
 -D group.2um/kaolin.3+smect.7.fit.gz \
 -E group.2um/kaol.75+alun.25.fit.gz \
 -F group.2um/kaol.75+pyroph.25.fit.gz \
---outfile=03_mineral_mix/group2um/kaolinite.tif --calc="A+B+C+D+E+F"
+--outfile=03_minerals_mix/group2um/kaolinite.tif --calc="A+B+C+D+E+F"
 
-# Montmorillonite endmembers
+# Montmorillonite minerals and dominant mixtures
 gdal_calc.py -A group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
 -B group.2um/smectite_montmorillonite_fe_swelling.fit.gz \
 -C group.2um/smectite_montmorillonite_ca_swelling.fit.gz \
@@ -565,9 +587,9 @@ gdal_calc.py -A group.2um/smectite_montmorillonite_na_highswelling.fit.gz \
 -L group.2um/organic_toluene+montswy.fit.gz \
 -M group.2um/organic_unleaded.gas+montswy.fit.gz \
 -N group.2um/organic_tce+montswy.fit.gz \
---outfile=03_mineral_mix/group2um/montmorillonite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N"
+--outfile=03_minerals_mix/group2um/montmorillonite.tif --calc="A+B+C+D+E+F+G+H+I+J+K+L+M+N"
 
-# Muscovite endmembers
+# Muscovite minerals and dominant mixtures
 gdal_calc.py -A group.2um/carbonate_calcite+0.3muscovite.fit.gz \
 -B group.2um/sulfate-mix_gyp+jar+musc.amix.fit.gz \
 -C group.2um/micagrp_muscovite-medhigh-Al.fit.gz \
@@ -578,16 +600,16 @@ gdal_calc.py -A group.2um/carbonate_calcite+0.3muscovite.fit.gz \
 -H group.2um/musc+pyroph.fit.gz \
 -I group.2um/alunite+musc+pyroph.fit.gz \
 -J group.2um/musc+gyp+jar+dick.amix.fit.gz \
---outfile=03_mineral_mix/group2um/muscovite.tif --calc="A+B+C+D+E+F+G+H+I+J"
+--outfile=03_minerals_mix/group2um/muscovite.tif --calc="A+B+C+D+E+F+G+H+I+J"
 
-# Nontronite endmembers
+# Nontronite minerals and dominant mixtures
 gdal_calc.py -A group.2um/smectite_nontronite_swelling.fit.gz \
---outfile=03_mineral_mix/group2um/nontronite.tif --calc="A"
+--outfile=03_minerals_mix/group2um/nontronite.tif --calc="A"
 
-# Pyrophyllite endmembers
+# Pyrophyllite minerals and dominant mixtures
 gdal_calc.py -A group.2um/pyrophyllite.fit.gz \
 -B group.2um/pyroph+tr.musc.fit.gz \
---outfile=03_mineral_mix/group2um/pyrophyllite.tif --calc="A+B"
+--outfile=03_minerals_mix/group2um/pyrophyllite.tif --calc="A+B"
 
 
 
@@ -843,13 +865,19 @@ gdal_calc.py -A group.2um/alunite+pyrophyl.fit.gz \
 -H group.2um/pyroph+tr.musc.fit.gz \
 --outfile=04_minerals_all/group2um/pyrophyllite.tif --calc="A+B+C+D+E+F+G+H"
 
-
-cd ${current_dir}
+echo 'beginning file cleanup in tet out directory'
+# remove everything except numbered directories
+# delete the files
+find . -maxdepth 1 -type f -delete
+# delete non-numbered directories 
+dirs_to_delete=`ls | grep ^[a-zA-Z]`
+rm -rf $dirs_to_delete
 
 date
 
 # remove image from tmp dir
 cd ${TMP_DIR}
+echo 'removing files from tmp directory'
 rm ${local_refl}
 rm ${local_refl}.hdr
 rm ${SLIB_PATH}
