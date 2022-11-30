@@ -4,13 +4,13 @@ cmdver="5.27a"
 tetver=5.27
 
 ##Directory where tetracorder source will be downloaded and compiled
-TC_BUILD_DIR=/data/gdcsdata/CarbonMapper/software/checkbuild1129
+TC_BUILD_DIR=/tmp/build-tetracoder-527
 ##Install prefix - tetracorder will be installed at 
 ## ${TCPREFIX/bin}
-TCPREFIX=/data/gdcsdata/CarbonMapper/software/apps/tetracorder/${tetver}_check
+TCPREFIX=/opt/tools/tetracorder/${tetver}_check
 
 ## Various data files and the USGS library will be placed here
-TC_DATA=/data/gdcsdata/CarbonMapper/software/checkdata1129
+TC_DATA=/opt/data/t1
 
 
 ## Clone the tetracorder repository to the build directory
