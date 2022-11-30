@@ -44,3 +44,6 @@ eg.
 $ sh run_tetracorder.sh example/output/out1 example/input/ang20200712t201415_corr_v2y1_img avirisng_2020a t1 1 /home/scratch tetracorder5.27a.cmds 
 ```
 
+# Example data
+
+An example image file (for flightline ang20200712t201415) is 4.24 GB and can be downloaded from the AVIRIS-NG FTP site here: https://avng.jpl.nasa.gov/avng/y20_data/ang20200712t201415.tar.gz. Related files and metadata and are available on the data portal: https://avirisng.jpl.nasa.gov/dataportal/. Example outputs are available on Zenodo at: https://doi.org/10.5281/zenodo.7383236.
