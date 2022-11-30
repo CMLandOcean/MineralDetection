@@ -20,6 +20,11 @@ cd "${TC_BUILD_DIR}"
 ## Make the output prefix folder
 mkdir -p "${TCPREFIX}"
 
+## Set up the environment for future builds
+###########################################
+export PATH="${TCPREFIX}/bin:$PATH"
+export LD_LIBRARY_PATH="${TCPREFIX}/lib:$LD_LIBRARY_PATH"
+export MANPATH="${TCPREFIX}/share/man:$MANPATH"
 
 ################################################################################
 ## Dependency Ratfor
@@ -30,6 +35,8 @@ pushd dependencies/ratfor
 # wget http://sepwww.stanford.edu/lib/exe/fetch.php?media=sep:software:ratfor77.tar.gz -O ratfor77.tar.gz
 # tar -xzf ratfor77.tar.gz
 ##Ugh stanford closed their access to this website
+##Try with a git repo I found
+git clone https://github.com/patrickbucher/ratfor77 ratfor77
 pushd ratfor77
 # ./configure --prefix "${TCPREFIX}"
 SEPBINDIR=. make
@@ -50,6 +57,8 @@ popd
 mkdir -p dependencies/davinci
 pushd dependencies/davinci  
 
+##Easiest to grab a precompiled version for centos - if not running on centos/redhat
+## you will have to either build from source or find a compiled version for your os
 wget http://software.mars.asu.edu/davinci/davinci-2.27-1.el7.centos.x86_64.rpm -O davinci-2.27-1.el7.centos.x86_64.rpm
 rpm2cpio davinci-2.27-1.el7.centos.x86_64.rpm | cpio -idmv
 rsync -av usr/ "${TCPREFIX}/"
@@ -57,15 +66,19 @@ mv "${TCPREFIX}/lib64" "${TCPREFIX}/lib"
 popd
 
 
+##Copy files to install dir ahead of time - change hardcoding of path to davinci
+###################################################################################
+for f in "${TC_BUILD_DIR}/tetracorder.cmds/tetracorder${cmdver}.cmds/davinci-cmds.for.usr.local.bin-pre-env8.30"/*; do
+    echo $f
+    sed 's~/usr/local/bin/davinci~/usr/bin/env davinci~' $f > "${TCPREFIX}/bin/$(basename $f)"
+    chmod +x "${TCPREFIX}/bin/$(basename $f)"
+done
+
+
 ################################################################################
 ## Dependency - SPECPR
 ################################################################################
 
-## Set up the environment
-#########################
-export PATH="${TCPREFIX}/bin:$PATH"
-export LD_LIBRARY_PATH="${TCPREFIX}/lib:$LD_LIBRARY_PATH"
-export MANPATH="${TCPREFIX}/share/man:$MANPATH"
 
 #modified from etc/bash.bashrc
 ##############################
@@ -125,15 +138,6 @@ export SP_YFLAGS=' '
 # export LD_RUN_PATH='/usr/local/lib'
 export LD_RUN_PATH="${TCPREFIX}/lib64"
 
-##Copy files to install dir ahead of time - change hardcoding of path to davinci
-###################################################################################
-for f in "${TC_BUILD_DIR}/tetracorder.cmds/tetracorder${cmdver}.cmds/davinci-cmds.for.usr.local.bin-pre-env8.30"/*; do
-    echo $f
-    sed 's~/usr/local/bin/davinci~/usr/bin/env davinci~' $f > "${TCPREFIX}/bin/$(basename $f)"
-    chmod +x "${TCPREFIX}/bin/$(basename $f)"
-done
-
-
 ##Attempt to build
 ##################
 
@@ -161,7 +165,6 @@ mv -f sspp "${TCPREFIX}/bin"
 chmod 555 "${TCPREFIX}/bin/sspp"
 popd
 
-
 echo "###################   "${SPECPR}/src.lib" ######################"
 ##Manually make the lib dir
 mkdir -p "${SPECPR}/lib"
@@ -179,41 +182,29 @@ make
 make install
 popd
 
+
 echo "###################   "${SPECPR}/src.stamp" ######################"
 pushd "${SPECPR}/src.sp_stamp"
 make
 make install
 popd
 
-echo "###################   "${SPECPR}/src.spprint" ######################"
-pushd "${SPECPR}/src.spprint/SRC"
-make
-make install
-popd
 
-echo "###################   "${SPECPR}/src.spsetwave" ######################"
-pushd "${SPECPR}/src.spsetwave/SRC"
-make
-make install
-popd
-        
-echo "###################   "${SPECPR}/src.spsettitle" ######################"
-pushd "${SPECPR}/src.spsettitle/SRC"
-make
-make install
-popd
+make_specpr_sublib () {
+    libname="$1"
+    echo "###################   "${SPECPR}/src.${libname}" ######################"
+    pushd "${SPECPR}/src.${libname}/SRC"
+    make
+    make install
+    popd
+}
 
-echo "###################   "${SPECPR}/src.spratio2spectra" ######################"
-pushd "${SPECPR}/src.spratio2spectra/SRC"
-make
-make install
-popd
-
-echo "###################   "${SPECPR}/src.spfeatures" ######################"
-pushd "${SPECPR}/src.spfeatures/SRC"
-make
-make install
-popd
+make_specpr_sublib spprint
+make_specpr_sublib spsetwave
+make_specpr_sublib spsettitle
+make_specpr_sublib spratio2spectra
+make_specpr_sublib spfeatures
+make_specpr_sublib fstospecpr
 
 echo "###################   "${SPECPR}/src.fstospecpr" ######################"
 echo "ASD field spectrometer to specpr format conversion"
@@ -256,7 +247,6 @@ popd
 echo "###################   "${SPECPR}/src.oceanopticstospecpr" ######################"
 pushd "${SPECPR}/src.oceanopticstospecpr"
 make
-# make install
 cp -a oceanopticstospecpr "${TCPREFIX}/bin/oceanopticstospecpr"
 cp -a oceanopticstospecpr-multiple "${TCPREFIX}/bin/oceanopticstospecpr-multiple"
 popd
@@ -285,7 +275,9 @@ do
     cp -a $i "${TCPREFIX}/share/man/man1/"
 done
 
+
 ##Modify hardcoding of prefix in specpr scripts
+###############################################
 mkdir -p "${TCPREFIX}/opt/specprdev"
 rsync -a "${SPECPR}"/{msgs,src.specpr,src.radtran} "${TCPREFIX}/opt/specprdev/" -v
 for script in specpr dspecpr dradtran radtran; do
@@ -359,7 +351,6 @@ srcT1="${TC_BUILD_DIR}"
 echo "new t1 dir: $T1"
 SL1="${TC_DATA}/sl1"
 srcSL1="${TC_BUILD_DIR}/sl1"
-echo "Moving files to new sl1 dir:  $SL1"
 
 mkdir -p "$T1/tetracorder.cmds/tetracorder${cmdver}.cmds"
 echo Copying necessary tetracorder${cmdver}.cmds folders to "$T1/tetracorder.cmds/tetracorder${cmdver}.cmds"
