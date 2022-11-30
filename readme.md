@@ -21,10 +21,10 @@ sh convolve_libraries.sh example/input/ang20200712t201415_corr_v2y1_img.hdr sl1 
 Once the reference libraries are convolved, use the script `run_tetracorder.sh` to run Tetracorder on an image, using the appropriate dataset keyword to use the convolved libraries and associated files matching the instrument as configured to collect that image. 
 
 ```
-$ sh run_tetracorder.sh [TET_OUT_DIR] [REFL_FILE] [DATASET] [TET_CMD_BASE] [SCALE] [SETUP_DIR] [TMP_DIR]
+$ sh run_tetracorder.sh [TET_OUT_DIR] [REFL_FILE] [DATASET] [TET_CMD_BASE] [SCALE] [TMP_DIR] [SETUP_DIR]
 ```
 
 eg.
 ```
-$ sh run_tetracorder.sh example/output/out1 example/input/ang20200712t201415_corr_v2y1_img avirisng_2020a . 1 tetracorder5.27a.cmds /home/scratch
+$ sh run_tetracorder.sh example/output/out1 example/input/ang20200712t201415_corr_v2y1_img avirisng_2020a . 1 /home/scratch tetracorder5.27a.cmds 
 ```
