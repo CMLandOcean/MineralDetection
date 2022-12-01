@@ -257,7 +257,7 @@ find group.1um/*.depth.gz -exec cp {} 01_tetdepths/group1um \;
 find group.1um/*.depth.gz.hdr -exec cp {} 01_tetdepths/group1um \;
 
 find group.2um/*.depth.gz -exec cp {} 01_tetdepths/group2um \;
-find group.2um/*.dpeht.gz.hdr -exec cp {} 01_tetdepths/group2um \;
+find group.2um/*.depth.gz.hdr -exec cp {} 01_tetdepths/group2um \;
 
 #########################################
 # Mineral only endmembers (no mixtures)
