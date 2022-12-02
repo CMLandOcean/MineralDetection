@@ -187,13 +187,13 @@ date
 # Post for Tetracorder                                                         #
 ################################################################################
 
-# quick check if tetracorder output directory exists
-
-if [ ! -d "${TET_OUT_DIR_ABS}/group.1um/epidote.fit.gz" ]
+# quick check if tetracorder output seems to exist
+n_files=`ls ${TET_OUT_DIR_ABS}/group.1um | wc -l`
+if [ ! $n_files -ge 1 ];
 then
-	echo "ERROR: No Tetracorder output. Something went wrong"
-	echo "exit 1"
-	exit 1
+   echo "ERROR: No Tetracorder output. Something went wrong"
+   echo "exit 1"
+   exit 1
 fi
 
 cd ${TET_OUT_DIR_ABS}
@@ -217,6 +217,39 @@ grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a case.veg.type/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.1.5um-broad/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.2um-broad/*.hdr >/dev/null
 grep 'map info =' ${REFL_ABS_FILE}.hdr | tee -a group.veg/*.hdr >/dev/null
+
+# remove characters from hdrs that python cant handle bc of encoding issue
+for file in group.1um/*.gz.hdr; do
+    iconv -c -f utf-8 -t ascii "$file" > "$file.new";
+    echo "removing any bad characters from $file";
+done
+
+for file in group.1um/*.gz.hdr; do
+   mv -f "$file.new" "$file";
+   echo "saving $file without bad characters";
+done
+
+for file in group.2um/*.gz.hdr; do
+    iconv -c -f utf-8 -t ascii "$file" > "$file.new";
+    echo "removing any bad characters from $file";
+done
+
+for file in group.2um/*.gz.hdr; do
+   mv -f "$file.new" "$file";
+   echo "saving $file without bad characters";
+done
+
+# fix hdrs for small files
+module load python/3.7.1
+for file in group.1um/*.gz; do
+   python ${current_dir}/fix_gz_hdr.py "$file";
+done
+
+# fix hdrs for small files
+for file in group.2um/*.gz; do
+   python ${current_dir}/fix_gz_hdr.py "$file";
+done
+module purge
 
 #########################################
 # Make output directories
@@ -257,7 +290,7 @@ find group.1um/*.depth.gz -exec cp {} 01_tetdepths/group1um \;
 find group.1um/*.depth.gz.hdr -exec cp {} 01_tetdepths/group1um \;
 
 find group.2um/*.depth.gz -exec cp {} 01_tetdepths/group2um \;
-find group.2um/*.dpeht.gz.hdr -exec cp {} 01_tetdepths/group2um \;
+find group.2um/*.depth.gz.hdr -exec cp {} 01_tetdepths/group2um \;
 
 #########################################
 # Mineral only endmembers (no mixtures)
