@@ -245,6 +245,6 @@ cd $current_dir
 
 echo "Libary convolutions complete for ${SENSOR_ID}_${SENSOR_YR}${LET1}"
 echo "Use dataset keyword ${SENSOR_ID}_${SENSOR_YR}${LET1} to use these libraries in tetracorder"
-echo "Dataset is at path: $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}
+echo "Dataset is at path: $TET_ABS_BASE/tetracorder.cmds/$SETUP_DIR/DATASETS/${SENSOR_ID}_${SENSOR_YR}${LET1}"
 
 
