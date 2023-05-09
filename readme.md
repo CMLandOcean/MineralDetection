@@ -1,4 +1,5 @@
 # Mineral detection system
+[![DOI](https://zenodo.org/badge/572248897.svg)](https://zenodo.org/badge/latestdoi/572248897)
 
 Code for implementing Tetracorder for Carbon Mapper applications
 
